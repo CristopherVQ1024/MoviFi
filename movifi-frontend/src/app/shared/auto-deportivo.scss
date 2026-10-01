@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+.auto {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+
+.radios {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: giro 6s linear infinite;
+}
+
+.haz {
+  animation: pulso 3.2s ease-in-out infinite;
+}
+
+.faro {
+  filter: drop-shadow(0 0 8px #bff1ff);
+}
+
+:host(.rapido) {
+  .radios {
+    animation-duration: 0.7s;
+  }
+
+  .haz {
+    animation-duration: 0.8s;
+  }
+}
+
+@keyframes giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulso {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radios,
+  .haz {
+    animation: none;
+  }
+}

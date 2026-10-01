@@ -1,0 +1,103 @@
+@if (store.vehiculo(); as v) {
+  <section
+    class="hero tarjeta"
+    [style.--px]="px()"
+    [style.--py]="py()"
+    (pointermove)="mover($event)"
+    (pointerleave)="reposo()"
+  >
+    <header>
+      <div>
+        <p class="rotulo">Tu vehículo</p>
+        <h2>{{ v.marca }} {{ v.modelo }} <small>{{ v.anio }}</small></h2>
+      </div>
+      @if (v.placa) {
+        <span class="placa">{{ v.placa }}</span>
+      }
+    </header>
+
+    <div class="escena">
+      <div class="piso"></div>
+      <div class="capa capa-medidor"><app-medidor [valor]="store.salud()" /></div>
+      <div class="capa capa-auto"><app-auto-deportivo /></div>
+      <app-tanque-combustible />
+    </div>
+
+    <div class="datos">
+      <div class="dato">
+        <span class="etq">Odómetro</span>
+        @if (!editando()) {
+          <div class="odometro">
+            @for (d of digitos(); track $index) {
+              <i>{{ d }}</i>
+            }
+            <small>km</small>
+            <button class="lapiz" type="button" (click)="abrirEdicion()" aria-label="Actualizar kilometraje">
+              Actualizar
+            </button>
+          </div>
+          @if (store.odometro(); as o) {
+            <p class="recorrido" title="Km que llevas desde la última vez que lo pusiste en 0, según tus odómetros y el consumo de combustible. Es solo informativo.">
+              Recorrido {{ o.extra > 0 ? '≈' : '' }} <b>{{ o.parcial.km | number: '1.0-0' }} km</b>
+              <span>desde {{ o.parcial.desde | fechaCorta }}</span>
+              <button class="enlace" type="button" (click)="reiniciarRecorrido()">{{ confirmarReinicio() ? '¿Poner en 0?' : 'Reiniciar' }}</button>
+            </p>
+            @if (o.extra > 0) {
+              <p class="estimado" title="Estimado con el combustible que has gastado desde que actualizaste el odómetro. Actualízalo al valor real cuando quieras.">
+                ≈ <b>{{ o.estimado | number: '1.0-0' }}</b> km <span>(+{{ o.extra | number: '1.0-0' }} por tu consumo)</span>
+              </p>
+            }
+          }
+        } @else {
+          <form class="edicion" (ngSubmit)="guardarKm()">
+            <input type="number" name="km" min="0" [(ngModel)]="nuevoKm" autofocus />
+            <button class="btn btn-primario" type="submit" [disabled]="guardando()">Guardar</button>
+            <button class="btn" type="button" (click)="editando.set(false)">Cancelar</button>
+          </form>
+        }
+      </div>
+
+      <div class="dato">
+        <span class="etq">Próximo mantenimiento</span>
+        @if (store.proximoMantenimiento(); as m) {
+          <strong class="valor">{{ m.nombre }}</strong>
+          <span class="chip" [class]="m.estado">
+            @if (m.estado === 'vencido') {
+              vencido
+            } @else if (m.dias === 0) {
+              vence hoy
+            } @else if (m.dias != null) {
+              en {{ m.dias }} días
+            } @else if (m.kmRestantes != null) {
+              en {{ m.kmRestantes }} km
+            }
+          </span>
+        } @else {
+          <strong class="valor suave">Sin programar</strong>
+        }
+      </div>
+
+      <div class="dato">
+        <span class="etq">Costo por km</span>
+        @if (store.costoKm(); as c) {
+          <strong class="valor digital">{{ c.valor | soles: 2 }}</strong>
+          <span class="chip neutro">{{ c.origen === 'real' ? 'real' : 'solo combustible' }}</span>
+        } @else {
+          <strong class="valor suave">—</strong>
+          <span class="chip neutro">elige tu combustible</span>
+        }
+      </div>
+
+      <div class="dato">
+        <span class="etq">Combustible</span>
+        @if (store.combustible(); as c) {
+          <strong class="valor digital">{{ c.rendimiento_km_por_galon ?? '—' }}<small> km/gal</small></strong>
+          <span class="chip neutro">
+            {{ c.grado ?? 'sin elegir' }}@if (c.precio_galon) { · {{ c.precio_galon | soles: 2 }}/gal }
+          </span>
+        }
+        <button class="lapiz" type="button" (click)="store.ajustesCombustible.set(true)">Ajustar</button>
+      </div>
+    </div>
+  </section>
+}

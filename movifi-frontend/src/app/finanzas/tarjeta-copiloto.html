@@ -1,0 +1,25 @@
+<section class="tarjeta copiloto">
+  <div class="icono" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3l2.2 5.3L20 9.2l-4.2 3.9L17 19l-5-2.9L7 19l1.2-5.9L4 9.2l5.8-.9z" />
+    </svg>
+  </div>
+
+  <div class="contenido">
+    <p class="rotulo">El copiloto dice</p>
+    @if (store.copiloto(); as c) {
+      <p class="texto">{{ c.texto }}</p>
+      @if (c.alertas.length) {
+        <ul class="alertas">
+          @for (a of c.alertas.slice(0, 4); track $index) {
+            <li [class]="a.nivel">{{ a.texto }}</li>
+          }
+        </ul>
+      }
+    } @else if (store.copilotoCargando()) {
+      <p class="esqueleto"><i></i><i></i></p>
+    } @else {
+      <p class="texto suave">No pude preparar el aviso de hoy. Igual puedes preguntarme en el chat.</p>
+    }
+  </div>
+</section>

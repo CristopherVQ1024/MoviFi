@@ -1,0 +1,127 @@
+:host {
+  display: block;
+}
+
+.tarjeta {
+  height: 100%;
+}
+
+.cuerpo {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.dona {
+  position: relative;
+  flex: 0 0 170px;
+  width: 170px;
+  height: 170px;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+}
+
+.pista,
+.seg {
+  fill: none;
+  stroke-width: 16;
+}
+
+.pista {
+  stroke: rgba(120, 170, 255, 0.1);
+}
+
+.seg {
+  cursor: pointer;
+  transition: opacity 0.2s, stroke-width 0.2s;
+
+  &:hover {
+    stroke-width: 20;
+  }
+
+  &.apagado {
+    opacity: 0.25;
+  }
+}
+
+.centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2.2rem;
+  text-align: center;
+  pointer-events: none;
+
+  span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--texto-suave);
+    font: 0.68rem var(--font-digital);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    font: 1.3rem var(--font-digital);
+  }
+}
+
+.leyenda {
+  flex: 1;
+  min-width: 160px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+
+    &.activa {
+      background: rgba(120, 170, 255, 0.1);
+    }
+  }
+
+  i {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+
+  .nombre {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .monto {
+    color: var(--texto-suave);
+    font: 0.9rem var(--font-digital);
+  }
+}
+
+.vacio {
+  margin: 1.5rem 0;
+  color: var(--texto-suave);
+  line-height: 1.5;
+}

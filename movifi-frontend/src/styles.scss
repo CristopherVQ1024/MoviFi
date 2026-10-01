@@ -1,1 +1,121 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --fondo: #050b1a;
+  --fondo-2: #0a1630;
+  --panel: #0d1b3a;
+  --linea: rgba(120, 170, 255, 0.16);
+  --texto: #e8f1ff;
+  --texto-suave: #8ea3c7;
+  --acento: #3ad6ff;
+  --acento-2: #2f6bff;
+  --alerta: #ffb347;
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-texto: 'Manrope', system-ui, sans-serif;
+  --font-digital: 'Share Tech Mono', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--font-texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------- piezas compartidas ---------- */
+.tarjeta {
+  position: relative;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(16, 32, 68, 0.78), rgba(8, 17, 38, 0.82));
+  box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.7);
+}
+
+.rotulo {
+  margin: 0 0 0.9rem;
+  color: var(--texto-suave);
+  font: 0.72rem var(--font-digital);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  background: rgba(120, 170, 255, 0.08);
+  color: var(--texto);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(120, 170, 255, 0.16);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: progress;
+  }
+}
+
+.btn-primario {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  color: #031022;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--acento), var(--acento-2));
+    transform: translateY(-1px);
+    box-shadow: 0 8px 28px -6px rgba(58, 214, 255, 0.6);
+  }
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+
+  input,
+  select,
+  textarea {
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--linea);
+    border-radius: 10px;
+    background: rgba(5, 11, 26, 0.7);
+    color: var(--texto);
+    font: 1rem var(--font-texto);
+    color-scheme: dark;
+
+    &:focus {
+      outline: none;
+      border-color: var(--acento);
+      box-shadow: 0 0 0 3px rgba(58, 214, 255, 0.18);
+    }
+  }
+}
+
+.msg-error {
+  margin: 0;
+  color: var(--alerta);
+  font-size: 0.88rem;
+}

@@ -1,0 +1,51 @@
+<section class="tarjeta">
+  <p class="rotulo">Notas del auto</p>
+
+  <form (ngSubmit)="agregar()">
+    <textarea
+      name="texto"
+      rows="2"
+      [maxlength]="max"
+      placeholder="Ej. ruido al frenar, presión de las llantas, nombre del mecánico…"
+      [(ngModel)]="texto"
+      aria-label="Nueva nota"
+    ></textarea>
+    <div class="pie">
+      <small>{{ texto.length }} / {{ max }}</small>
+      <button class="btn btn-primario" type="submit" [disabled]="guardando() || !texto.trim()">Anotar</button>
+    </div>
+  </form>
+
+  @if (error()) {
+    <p class="msg-error">{{ error() }}</p>
+  }
+
+  @if (store.notas().length) {
+    <ul>
+      @for (n of store.notas(); track n.id) {
+        <li>
+          @if (editando() === n.id) {
+            <textarea name="edicion" rows="3" [maxlength]="max" [(ngModel)]="textoEdit" aria-label="Editar nota"></textarea>
+            <div class="acciones">
+              <button class="mini on" type="button" [disabled]="guardando() || !textoEdit.trim()" (click)="guardarEdicion(n.id)">Guardar</button>
+              <button class="mini" type="button" (click)="editando.set(null)">Cancelar</button>
+            </div>
+          } @else {
+            <p class="texto">{{ n.texto }}</p>
+            <div class="meta">
+              <small>{{ n.fecha | fechaCorta }}@if (n.actualizada) { · editada }</small>
+              <span class="acciones">
+                <button class="mini" type="button" (click)="editar(n)">Editar</button>
+                <button class="mini" type="button" [class.armado]="porBorrar() === n.id" (click)="borrar(n.id)">
+                  {{ porBorrar() === n.id ? '¿Seguro?' : 'Borrar' }}
+                </button>
+              </span>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="vacio">Aquí puedes anotar lo que no es un gasto ni un mantenimiento. El copiloto también puede leerlo.</p>
+  }
+</section>

@@ -1,0 +1,47 @@
+<section class="tarjeta">
+  <p class="rotulo">Gasto por categoría · este mes</p>
+
+  @if (segmentos().length) {
+    <div class="cuerpo">
+      <div class="dona">
+        <svg viewBox="0 0 180 180">
+          <circle cx="90" cy="90" [attr.r]="r" class="pista" />
+          @for (s of segmentos(); track s.nombre) {
+            <circle
+              cx="90"
+              cy="90"
+              [attr.r]="r"
+              class="seg"
+              [class.apagado]="activa() && activa() !== s.nombre"
+              [style.stroke]="s.color"
+              [style.stroke-dasharray]="s.dash"
+              [style.stroke-dashoffset]="s.offset"
+              (pointerenter)="activa.set(s.nombre)"
+              (pointerleave)="activa.set(null)"
+            />
+          }
+        </svg>
+        <div class="centro">
+          <span>{{ foco()?.nombre ?? 'Total' }}</span>
+          <strong>{{ (foco()?.total ?? total()) | soles }}</strong>
+        </div>
+      </div>
+
+      <ul class="leyenda">
+        @for (c of store.categorias(); track c.nombre) {
+          <li
+            [class.activa]="activa() === c.nombre"
+            (pointerenter)="activa.set(c.nombre)"
+            (pointerleave)="activa.set(null)"
+          >
+            <i [style.background]="c.color"></i>
+            <span class="nombre">{{ c.nombre }}</span>
+            <span class="monto">{{ c.total | soles }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  } @else {
+    <p class="vacio">Todavía no hay gastos este mes. Registra el primero con el botón de abajo.</p>
+  }
+</section>

@@ -1,0 +1,93 @@
+$mov: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+:host {
+  display: block;
+}
+
+.medidor {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pista,
+.progreso {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.pista {
+  stroke: rgba(120, 170, 255, 0.14);
+}
+
+.progreso {
+  stroke: url(#arco);
+  filter: drop-shadow(0 0 8px rgba(58, 214, 255, 0.75));
+  transition: stroke-dasharray 0.9s $mov;
+}
+
+.marca-tick {
+  stroke: rgba(160, 195, 255, 0.4);
+  stroke-width: 1.5;
+
+  &.mayor {
+    stroke: rgba(232, 241, 255, 0.85);
+    stroke-width: 2.5;
+  }
+}
+
+.etiqueta {
+  fill: var(--texto-suave);
+  font: 13px var(--font-digital);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.aguja {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition: transform 0.9s $mov;
+
+  path {
+    fill: #fff;
+    filter: drop-shadow(0 0 6px rgba(58, 214, 255, 0.9));
+  }
+}
+
+.eje {
+  fill: #0a1630;
+  stroke: var(--acento);
+  stroke-width: 2;
+}
+
+.eje-centro {
+  fill: var(--acento);
+}
+
+.cifra {
+  fill: var(--texto);
+  font: 54px var(--font-digital);
+  text-anchor: middle;
+  text-shadow: 0 0 12px var(--acento);
+
+  .unidad {
+    fill: var(--acento);
+    font-size: 24px;
+  }
+}
+
+.rotulo {
+  fill: var(--texto-suave);
+  font: 11px var(--font-digital);
+  letter-spacing: 0.3em;
+  text-anchor: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progreso,
+  .aguja {
+    transition: none;
+  }
+}

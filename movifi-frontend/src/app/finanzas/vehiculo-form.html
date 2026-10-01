@@ -1,0 +1,50 @@
+<section class="bienvenida">
+  <div class="texto">
+    <p class="eyebrow">Primer paso</p>
+    <h1>Registra tu auto<br /><em>y arrancamos.</em></h1>
+    <p class="bajada">
+      Con la marca, el modelo y el año busco sus especificaciones (combustible y rendimiento) en la web
+      una sola vez y las guardo.
+    </p>
+
+    <form class="tarjeta" (ngSubmit)="guardar()" #f="ngForm">
+      <div class="fila">
+        <label class="campo">Marca
+          <input name="marca" [(ngModel)]="marca" required placeholder="Toyota" autocomplete="off" />
+        </label>
+        <label class="campo">Modelo
+          <input name="modelo" [(ngModel)]="modelo" required placeholder="Yaris" autocomplete="off" />
+        </label>
+      </div>
+      <div class="fila">
+        <label class="campo">Año
+          <input name="anio" type="number" [(ngModel)]="anio" required min="1990" max="2100" placeholder="2020" />
+        </label>
+        <label class="campo">Placa
+          <input name="placa" [(ngModel)]="placa" required placeholder="ABC-123" autocomplete="off" />
+        </label>
+      </div>
+
+      <label class="campo">Combustible que usas
+        <select name="combustible" [(ngModel)]="combustible">
+          @for (g of grados; track g) {
+            <option [value]="g">{{ g }}</option>
+          }
+        </select>
+      </label>
+
+      @if (error()) {
+        <p class="msg-error">{{ error() }}</p>
+      }
+
+      <button class="btn btn-primario" type="submit" [disabled]="enviando() || f.invalid">
+        {{ enviando() ? 'Buscando especificaciones…' : 'Registrar mi auto' }}
+      </button>
+      @if (enviando()) {
+        <p class="espera">Esto puede tardar unos segundos mientras consulto la web.</p>
+      }
+    </form>
+  </div>
+
+  <div class="auto"><app-auto-deportivo [rapido]="enviando()" /></div>
+</section>

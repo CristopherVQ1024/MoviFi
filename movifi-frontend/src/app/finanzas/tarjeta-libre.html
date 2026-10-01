@@ -1,0 +1,72 @@
+@if (store.libre(); as l) {
+  <section class="tarjeta">
+    <p class="rotulo">Libre para gustos</p>
+
+    @if (!l.definido) {
+      <p class="vacio">Define tu presupuesto del mes y te digo cuánto te queda libre de verdad.</p>
+    } @else {
+      <div class="cifra">
+        <strong [class.cero]="l.libre <= 0">{{ libreVisible() | soles }}</strong>
+        <span>de {{ l.disponible | soles }} disponibles</span>
+      </div>
+
+      <div class="barra" aria-hidden="true">
+        @for (t of tramos(); track t.clase) {
+          <i [class]="t.clase" [style.width.%]="t.pct"></i>
+        }
+      </div>
+
+      <ul class="desglose">
+        <li><i class="libre"></i><span>Libre para gustos</span><b>{{ libreVisible() | soles }}</b></li>
+        <li>
+          <i class="comb"></i>
+          <span>Combustible que aún falta</span>
+          <b>{{ l.combustible_pendiente | soles }}</b>
+        </li>
+        <li>
+          <i class="mant"></i>
+          <span>Mantenimientos de este mes</span>
+          <b>{{ l.mantenimientos_total | soles }}</b>
+        </li>
+        <li><i class="imp"></i><span>Colchón de imprevistos</span><b>{{ l.imprevistos | soles }}</b></li>
+      </ul>
+
+      @if (l.combustible_origen === 'sin-datos') {
+        <p class="aviso">
+          No sé cuánto sueles gastar en combustible al mes, así que no lo reservé.
+          <button type="button" (click)="store.ajustesCombustible.set(true)">Indicarlo</button>
+        </p>
+      }
+    }
+
+    <form class="simulador" (ngSubmit)="consultar()">
+      <label for="monto-libre">¿Me alcanza para…?</label>
+      <div class="fila">
+        <input id="monto-libre" name="monto" type="number" min="1" placeholder="Monto en S/" [(ngModel)]="monto" (ngModelChange)="limpiar()" />
+        <button class="btn btn-primario" type="submit" [disabled]="consultando() || !monto">Ver</button>
+      </div>
+    </form>
+
+    @if (resultado(); as r) {
+      <div class="veredicto" [class]="r.veredicto" role="status">
+        @switch (r.veredicto) {
+          @case ('si') {
+            <strong>Sí, te alcanza.</strong>
+            <span>Te sobrarían {{ r.sobra! | soles }} libres este mes.</span>
+          }
+          @case ('justo') {
+            <strong>Justo.</strong>
+            <span>Solo si usas {{ r.usa_colchon! | soles }} de tu colchón de imprevistos.</span>
+          }
+          @case ('no') {
+            <strong>Mejor no por ahora.</strong>
+            <span>Te faltarían {{ r.faltan! | soles }} para hacerlo sin descuidar combustible y mantenimientos.</span>
+          }
+          @default {
+            <strong>Primero define tu presupuesto.</strong>
+          }
+        }
+      </div>
+    }
+  </section>
+}

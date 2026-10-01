@@ -1,0 +1,85 @@
+<div class="velo" (click)="cerrar()"></div>
+<aside class="panel" role="dialog" aria-label="Calcular un viaje">
+  <header>
+    <h2>¿Cuánto cuesta el viaje?</h2>
+    <button type="button" class="x" (click)="cerrar()" aria-label="Cerrar">✕</button>
+  </header>
+
+  <form (ngSubmit)="calcular()">
+    <label class="campo">Distancia (km, solo ida)
+      <input name="km" type="number" min="1" [(ngModel)]="km" (ngModelChange)="limpiar()" placeholder="Ej. 300" autofocus />
+    </label>
+
+    <label class="check">
+      <input name="ida" type="checkbox" [(ngModel)]="idaVuelta" (ngModelChange)="limpiar()" />
+      Ida y vuelta
+    </label>
+
+    <label class="campo">Peajes estimados (S/, opcional)
+      <input name="peajes" type="number" min="0" step="1" [(ngModel)]="peajes" (ngModelChange)="limpiar()" placeholder="0" />
+    </label>
+
+    @if (error()) {
+      <p class="msg-error">{{ error() }}</p>
+    }
+
+    <button class="btn btn-primario" type="submit" [disabled]="calculando() || !km">
+      {{ calculando() ? 'Calculando…' : 'Calcular' }}
+    </button>
+  </form>
+
+  @if (resultado(); as r) {
+    <section class="resultado">
+      <div class="linea grande">
+        <span>Combustible</span>
+        <strong>{{ r.costo_combustible | soles }}</strong>
+      </div>
+      <p class="detalle">
+        {{ r.km_total | number: '1.0-0' }} km → {{ r.galones | number: '1.0-1' }} galones
+        @if (r.barras) { (≈ {{ r.barras | number: '1.0-1' }} barras del medidor) }
+      </p>
+      @if (r.peajes) {
+        <div class="linea"><span>Peajes</span><b>{{ r.peajes | soles }}</b></div>
+        <div class="linea total"><span>Total del viaje</span><strong>{{ r.total | soles }}</strong></div>
+      }
+
+      @if (r.con_tanque_actual; as t) {
+        <div class="caja" [class.ok]="t.alcanza" [class.alerta]="!t.alcanza">
+          @if (t.alcanza) {
+            <strong>Con tu tanque actual llegas.</strong>
+            <span>Te dura para unos {{ t.autonomia_km | number: '1.0-0' }} km.</span>
+          } @else {
+            <strong>Antes de salir, carga unos {{ t.monto_a_cargar | soles }}.</strong>
+            <span>
+              Tu tanque alcanza para {{ t.autonomia_km | number: '1.0-0' }} km y te faltan ≈
+              {{ t.galones_a_cargar | number: '1.0-1' }} galones.
+            </span>
+          }
+        </div>
+      } @else {
+        <p class="detalle">Marca tu nivel en el medidor del auto y te digo si necesitas cargar antes de salir.</p>
+      }
+
+      <div class="caja" [class.ok]="r.veredicto.veredicto === 'si'" [class.medio]="r.veredicto.veredicto === 'justo'" [class.alerta]="r.veredicto.veredicto === 'no'">
+        @switch (r.veredicto.veredicto) {
+          @case ('si') {
+            <strong>Entra en tu presupuesto.</strong>
+            <span>Te sobrarían {{ r.veredicto.sobra! | soles }} libres este mes.</span>
+          }
+          @case ('justo') {
+            <strong>Justo.</strong>
+            <span>Solo si usas {{ r.veredicto.usa_colchon! | soles }} de tu colchón de imprevistos.</span>
+          }
+          @case ('no') {
+            <strong>Se sale de tu presupuesto libre.</strong>
+            <span>Te faltarían {{ r.veredicto.faltan! | soles }} para hacerlo sin descuidar tus otros gastos.</span>
+          }
+          @default {
+            <strong>Define tu presupuesto del mes</strong>
+            <span>para saber si el viaje te alcanza.</span>
+          }
+        }
+      </div>
+    </section>
+  }
+</aside>

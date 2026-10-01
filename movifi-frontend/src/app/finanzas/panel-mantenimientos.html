@@ -1,0 +1,84 @@
+<section class="tarjeta">
+  <p class="rotulo">Mantenimientos</p>
+
+  @if (store.mantenimientosVista().length) {
+    <ul class="lista">
+      @for (m of store.mantenimientosVista(); track m.id) {
+        <li [class]="m.estado">
+          <span class="punto"></span>
+          <div class="info">
+            <strong>{{ m.nombre }}</strong>
+            @if (m.ultima_fecha || m.proxima_fecha || m.proximo_km) {
+              @if (m.ultima_fecha) {
+                <small>
+                  Último: {{ m.ultima_fecha | fechaCorta }}@if (m.ultimo_km) { · {{ m.ultimo_km.toLocaleString('es-PE') }} km }
+                </small>
+              }
+              <small class="proximo">
+                @if (m.proxima_fecha) {
+                  Toca el {{ m.proxima_fecha | fechaCorta }}
+                }
+                @if (m.proximo_km) {
+                  {{ m.proxima_fecha ? 'o a los' : 'Toca a los' }} {{ m.proximo_km.toLocaleString('es-PE') }} km
+                }
+                @if (m.estado === 'vencido') {
+                  · <b>vencido</b>
+                } @else if (m.dias === 0) {
+                  · <b>vence hoy</b>
+                } @else if (m.dias != null && m.dias > 0 && m.dias <= 60) {
+                  · en {{ m.dias }} d
+                } @else if (m.dias != null && m.dias > 60) {
+                  · en {{ plazo(m.dias) }}
+                }
+              </small>
+            } @else {
+              <small>Sin registro. <button class="enlace" type="button" (click)="abrir(m.tipo_mantenimiento_id)">Indicar la última vez</button></small>
+            }
+          </div>
+          <button class="mini" type="button" (click)="registrar(m.tipo_mantenimiento_id)">Hecho</button>
+          <button class="quitar" type="button" (click)="store.quitarMantenimiento(m.id)" aria-label="Dejar de seguir">✕</button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="vacio">
+      Elige qué mantenimientos quieres seguir y te aviso cuando toque cada uno.
+    </p>
+  }
+
+  @if (configurando(); as t) {
+    <form class="config" (ngSubmit)="guardar(true)">
+      <strong>{{ t.nombre }}: ¿cuándo fue la última vez?</strong>
+      <small>{{ frecuencia(t) }}</small>
+      <div class="fila">
+        <label class="campo">Fecha
+          <input name="fecha" type="date" [max]="hoy" [(ngModel)]="fecha" />
+        </label>
+        @if (t.frecuencia_km_sugerida) {
+          <label class="campo">Km de ese día
+            <input name="km" type="number" min="0" placeholder="Opcional" [(ngModel)]="km" />
+          </label>
+        }
+      </div>
+      @if (error()) {
+        <p class="msg-error">{{ error() }}</p>
+      }
+      <div class="botones">
+        <button class="btn btn-primario" type="submit" [disabled]="guardando()">Seguir</button>
+        <button class="btn" type="button" [disabled]="guardando()" (click)="guardar(false)">No lo sé</button>
+        <button class="btn" type="button" (click)="configurando.set(null)">✕</button>
+      </div>
+    </form>
+  }
+
+  @if (disponibles().length) {
+    <div class="agregar">
+      <span class="etq">Seguir también</span>
+      <div class="chips">
+        @for (t of disponibles(); track t.id) {
+          <button type="button" [class.on]="configurando()?.id === t.id" (click)="abrir(t.id)">+ {{ t.nombre }}</button>
+        }
+      </div>
+    </div>
+  }
+</section>

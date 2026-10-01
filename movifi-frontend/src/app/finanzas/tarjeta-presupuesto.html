@@ -1,0 +1,67 @@
+@let p = store.presupuesto();
+<section class="tarjeta">
+  <p class="rotulo">Presupuesto de {{ mes }}</p>
+
+  <div class="cuerpo">
+    <div class="anillo">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" class="pista" />
+        <circle
+          cx="60"
+          cy="60"
+          r="52"
+          class="avance"
+          [class.excedido]="p.excedido"
+          [style.stroke-dasharray]="p.pct * circ + ' ' + circ"
+        />
+      </svg>
+      <div class="centro">
+        @if (p.definido) {
+          <strong>{{ p.pct * 100 | number: '1.0-0' }}%</strong>
+          <span>gastado</span>
+        } @else {
+          <span>sin<br />definir</span>
+        }
+      </div>
+    </div>
+
+    <div class="cifras">
+      <div>
+        <span class="etq">Gastado</span>
+        <strong class="digital">{{ p.gastado | soles }}</strong>
+      </div>
+      <div>
+        <span class="etq">{{ p.excedido ? 'Excedido' : 'Disponible' }}</span>
+        <strong class="digital" [class.alerta]="p.excedido">{{ (p.excedido ? -p.restante : p.restante) | soles }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <p class="voz">
+    @if (!p.definido) {
+      Aún no defines cuánto quieres gastar este mes en tu auto.
+    } @else if (p.excedido) {
+      Te pasaste por {{ -p.restante | soles }}. Toca frenar un poco hasta fin de mes.
+    } @else {
+      Te quedan {{ p.restante | soles }}: unos {{ p.porDia | soles }} por día hasta fin de mes.
+    }
+  </p>
+
+  @if (!editando()) {
+    <button class="btn" type="button" (click)="abrir()">
+      {{ p.definido ? 'Cambiar presupuesto' : 'Definir presupuesto' }}
+    </button>
+  } @else {
+    <form class="edicion" (ngSubmit)="guardar()">
+      <input type="number" name="monto" min="1" step="10" placeholder="Monto en S/" [(ngModel)]="monto" autofocus />
+      <button class="btn btn-primario" type="submit" [disabled]="guardando()">Guardar</button>
+      <button class="btn" type="button" (click)="editando.set(false)">✕</button>
+    </form>
+    @if (sugerido(); as sug) {
+      <p class="sugerencia">
+        En combustible sueles gastar unos {{ sug | soles }} al mes.
+        <button type="button" (click)="monto = sug">Usar ese monto</button>
+      </p>
+    }
+  }
+</section>

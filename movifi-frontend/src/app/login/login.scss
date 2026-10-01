@@ -1,0 +1,319 @@
+$mov: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+.login {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(340px, 580px) 1fr;
+  align-items: center;
+  gap: 2rem;
+  min-height: 100dvh;
+  padding: clamp(1.5rem, 4vw, 4rem);
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 75% 40%, var(--fondo-2), var(--fondo) 62%);
+  isolation: isolate;
+}
+
+.fondo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--linea) 1px, transparent 1px),
+    linear-gradient(90deg, var(--linea) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.35;
+  mask-image: radial-gradient(70% 70% at 70% 45%, #000, transparent);
+}
+
+/* ---------- texto ---------- */
+.intro {
+  animation: entrada 0.9s $mov both;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 3.5rem;
+  color: var(--acento);
+  font: 700 1.35rem var(--font-display);
+  letter-spacing: 0.04em;
+
+  span {
+    color: var(--texto);
+  }
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  color: var(--acento);
+  font: 500 0.8rem var(--font-digital);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 1.25rem;
+  font: 700 clamp(2.3rem, 4.2vw, 3.6rem) / 1.04 var(--font-display);
+  letter-spacing: -0.01em;
+
+  em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--acento), var(--acento-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.bajada {
+  max-width: 40ch;
+  margin: 0 0 2.25rem;
+  color: var(--texto-suave);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.google {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.95rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: #f4f8ff;
+  color: #0a1630;
+  font-weight: 600;
+  box-shadow: 0 0 0 0 rgba(58, 214, 255, 0);
+  transition: transform 0.25s $mov, box-shadow 0.25s $mov;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 40px -6px rgba(58, 214, 255, 0.55);
+    outline: none;
+  }
+
+  &:disabled {
+    cursor: progress;
+    opacity: 0.8;
+  }
+}
+
+.error {
+  margin: 1rem 0 0;
+  color: var(--alerta);
+  font-size: 0.92rem;
+}
+
+.nota {
+  margin: 1.5rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+/* ---------- escena ---------- */
+.escena {
+  position: relative;
+  min-height: min(70vh, 560px);
+  perspective: 1400px;
+  animation: entrada 1.1s 0.15s $mov both;
+}
+
+.mundo {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(var(--px, 0) * 8deg)) rotateX(calc(var(--py, 0) * -4deg));
+  transition: transform 0.5s $mov;
+}
+
+.capa {
+  position: absolute;
+  transform-style: preserve-3d;
+  transition: transform 0.5s $mov;
+}
+
+.capa-medidor {
+  top: -3%;
+  left: 50%;
+  width: min(58%, 420px);
+  transform: translateX(-50%) translateZ(-90px) translateX(calc(var(--px, 0) * -18px));
+}
+
+.capa-auto {
+  bottom: 9%;
+  left: 50%;
+  width: min(122%, 900px);
+  transform: translateX(-50%) translateZ(30px) translateX(calc(var(--px, 0) * 14px));
+}
+
+.capa-hud {
+  inset: 0;
+  transform: translateZ(90px);
+}
+
+.piso {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: 0;
+  height: 46%;
+  transform: translateZ(-20px) rotateX(74deg);
+  transform-origin: bottom;
+  background-image:
+    linear-gradient(rgba(58, 214, 255, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(58, 214, 255, 0.28) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to top, #000 10%, transparent 90%);
+  animation: ruta 2.2s linear infinite;
+}
+
+.acelerando .piso {
+  animation-duration: 0.6s;
+}
+
+/* fichas flotantes */
+.ficha {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  background: rgba(10, 22, 48, 0.72);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+  transform: translateX(calc(var(--px, 0) * 10px)) translateY(calc(var(--py, 0) * 8px));
+  transition: transform 0.5s $mov;
+}
+
+.ficha-rotulo {
+  color: var(--texto-suave);
+  font: 0.68rem var(--font-digital);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ficha-cifra {
+  font: 1.55rem var(--font-digital);
+  color: var(--texto);
+
+  small {
+    color: var(--texto-suave);
+    font-size: 0.85rem;
+  }
+}
+
+.ficha-texto {
+  font: 700 1.3rem var(--font-display);
+}
+
+.ficha-presupuesto {
+  top: 14%;
+  left: 0;
+  min-width: 190px;
+}
+
+.ficha-soat {
+  top: 30%;
+  right: 0;
+}
+
+.ficha-km {
+  bottom: 2%;
+  left: 2%;
+}
+
+.barra {
+  display: block;
+  height: 4px;
+  margin-top: 0.3rem;
+  border-radius: 2px;
+  background: rgba(120, 170, 255, 0.18);
+
+  i {
+    display: block;
+    width: 80%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--acento-2), var(--acento));
+    box-shadow: 0 0 8px var(--acento);
+  }
+}
+
+.alerta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--alerta);
+  font: 0.8rem var(--font-digital);
+
+  b {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--alerta);
+    box-shadow: 0 0 10px var(--alerta);
+    animation: parpadeo 1.6s ease-in-out infinite;
+  }
+}
+
+/* ---------- animaciones ---------- */
+@keyframes entrada {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes ruta {
+  to {
+    background-position: 0 64px;
+  }
+}
+
+@keyframes parpadeo {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .login {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 0;
+    padding-bottom: 2rem;
+  }
+
+  .escena {
+    order: -1;
+    min-height: 300px;
+    margin: 0 -1rem 1rem;
+  }
+
+  .marca {
+    margin-bottom: 1.5rem;
+  }
+
+  .ficha {
+    display: none;
+  }
+
+  .capa-medidor {
+    width: 62%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

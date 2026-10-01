@@ -1,0 +1,69 @@
+<div class="pantalla">
+  <div class="fondo" aria-hidden="true"></div>
+
+  <header class="barra">
+    <div class="marca">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+        <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2" opacity=".35" />
+        <path d="M5 21 A13 13 0 1 1 27 21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        <path d="M16 17 L21 9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        <circle cx="16" cy="17" r="2.4" fill="currentColor" />
+      </svg>
+      <span>MoviFi</span>
+    </div>
+
+    <div class="acciones">
+      @if (store.vehiculo()) {
+        <button class="btn btn-primario" type="button" (click)="nuevoGasto()">+ Registrar gasto</button>
+      }
+      <div class="usuario">
+        @if (auth.usuario()?.foto_url; as foto) {
+          <img [src]="foto" alt="" referrerpolicy="no-referrer" />
+        }
+        <span>{{ auth.usuario()?.nombre }}</span>
+        <button type="button" (click)="auth.cerrarSesion()">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    @if (store.cargando()) {
+      <p class="estado"><span class="pulso"></span> Encendiendo el tablero…</p>
+    } @else if (store.error()) {
+      <div class="estado">
+        <p>{{ store.error() }}</p>
+        <button class="btn" type="button" (click)="store.iniciar()">Reintentar</button>
+      </div>
+    } @else if (!store.vehiculo()) {
+      <app-vehiculo-form />
+    } @else {
+      <div class="rejilla">
+        <app-tarjeta-copiloto class="copiloto" />
+        <app-hero-vehiculo class="hero" />
+        <div class="columna">
+          <app-tarjeta-presupuesto />
+          <app-panel-mantenimientos />
+        </div>
+        <div class="col-grafico">
+          <app-grafico-gastos />
+          <app-tarjeta-notas />
+        </div>
+        <app-tarjeta-libre class="libre" />
+        <app-lista-gastos class="gastos" />
+      </div>
+    }
+  </main>
+
+  @if (store.vehiculo()) {
+    <app-chat-widget />
+  }
+  @if (store.viajeAbierto()) {
+    <app-viaje-form />
+  }
+  @if (store.ajustesCombustible()) {
+    <app-combustible-form />
+  }
+  @if (store.formularioGasto()) {
+    <app-gasto-form />
+  }
+</div>

@@ -1,0 +1,68 @@
+<div class="velo" (click)="cerrar()"></div>
+<aside class="panel" role="dialog" aria-label="Ajustar combustible">
+  <header>
+    <h2>Tu combustible</h2>
+    <button type="button" class="x" (click)="cerrar()" aria-label="Cerrar">✕</button>
+  </header>
+
+  <form (ngSubmit)="guardar()">
+    <label class="campo">Tipo que usas
+      <select name="grado" [(ngModel)]="grado">
+        <option value="" disabled>Elige uno…</option>
+        @for (g of grados; track g) {
+          <option [value]="g">{{ g }}</option>
+        }
+      </select>
+      <small>Al cambiarlo, el precio se actualiza al promedio de ese combustible.</small>
+    </label>
+
+    <label class="campo">Rendimiento (km por galón)
+      <input name="rendimiento" type="number" min="1" step="0.5" [(ngModel)]="rendimiento" />
+      <small>
+        {{ origen === 'manual' ? 'Lo definiste tú.' : 'Estimado por la IA: ajústalo si tu auto rinde distinto.' }}
+        @if (origen === 'manual') {
+          <button type="button" (click)="guardar('estimado')">Volver al estimado</button>
+        }
+      </small>
+    </label>
+
+    <label class="campo">Precio por galón (S/)
+      <input name="precio" type="number" min="1" step="0.1" [(ngModel)]="precio" />
+      <small>
+        Promedio de referencia, no cambia de golpe. Corrígelo si tu grifo cobra distinto.
+        <button type="button" (click)="guardar('referencia')">Usar el de referencia</button>
+      </small>
+    </label>
+
+    <label class="campo">Capacidad del tanque (galones)
+      <input name="capacidad" type="number" min="1" step="0.1" [(ngModel)]="capacidad" />
+      <small>
+        {{ capacidadOrigen === 'manual' ? 'La definiste tú.' : 'Estimada por la IA según tu modelo.' }}
+        Con esto el medidor de 10 barras sabe cuánto es cada barra.
+      </small>
+    </label>
+
+    <label class="campo">Gasto mensual típico en combustible (S/)
+      <input name="mensual" type="number" min="0" step="10" [(ngModel)]="mensual" placeholder="Ej. 200" />
+      <small>Con esto reservo lo que aún te falta cargar este mes y calculo cuánto te queda libre para gustos.</small>
+    </label>
+
+    @if (ejemplo(); as e) {
+      <div class="ejemplo">
+        <span>Una carga típica de {{ e.monto | soles }}</span>
+        <strong>≈ {{ e.galones.toFixed(1) }} galones · unos {{ e.km.toFixed(0) }} km</strong>
+        @if (precio && rendimiento) {
+          <span>Cada km te cuesta {{ precio / rendimiento | soles: 2 }} en combustible</span>
+        }
+      </div>
+    }
+
+    @if (error()) {
+      <p class="msg-error">{{ error() }}</p>
+    }
+
+    <button class="btn btn-primario" type="submit" [disabled]="enviando()">
+      {{ enviando() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </form>
+</aside>

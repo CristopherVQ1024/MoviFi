@@ -1,0 +1,29 @@
+<section class="tarjeta">
+  <p class="rotulo">Últimos gastos</p>
+
+  @if (store.gastos().length) {
+    <ul>
+      @for (g of store.gastos(); track g.id) {
+        <li>
+          <i [style.background]="store.colorDe(g.categoria)"></i>
+          <div class="info">
+            <strong>{{ g.descripcion || g.categoria || 'Gasto' }}</strong>
+            <small>{{ g.categoria || 'Sin categoría' }} · {{ g.fecha | fechaCorta }}</small>
+          </div>
+          <span class="monto">{{ +g.monto | soles: 2 }}</span>
+          <button
+            type="button"
+            class="borrar"
+            [class.armado]="porBorrar() === g.id"
+            (click)="borrar(g.id)"
+            [attr.aria-label]="'Eliminar gasto'"
+          >
+            {{ porBorrar() === g.id ? '¿Seguro?' : '✕' }}
+          </button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="vacio">Aquí aparecerán tus gastos: combustible, reparaciones, lavado, lo que sea.</p>
+  }
+</section>

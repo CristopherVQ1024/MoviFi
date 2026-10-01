@@ -1,0 +1,99 @@
+<svg viewBox="0 0 960 300" class="auto">
+<defs>
+  <linearGradient id="carro" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#3c68bd" />
+    <stop offset=".3" stop-color="#1a3263" />
+    <stop offset=".7" stop-color="#0c1a3a" />
+    <stop offset="1" stop-color="#060d20" />
+  </linearGradient>
+  <linearGradient id="borde" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#3ad6ff" stop-opacity=".15" />
+    <stop offset=".55" stop-color="#9aeeff" />
+    <stop offset="1" stop-color="#3ad6ff" stop-opacity=".6" />
+  </linearGradient>
+  <linearGradient id="vidrio" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#10224a" />
+    <stop offset=".55" stop-color="#040a18" />
+    <stop offset="1" stop-color="#1a3a70" />
+  </linearGradient>
+  <linearGradient id="haz" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#cff4ff" stop-opacity=".65" />
+    <stop offset="1" stop-color="#3ad6ff" stop-opacity="0" />
+  </linearGradient>
+  <linearGradient id="reflejo" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#fff" stop-opacity="0" />
+    <stop offset=".5" stop-color="#cfeaff" stop-opacity=".35" />
+    <stop offset="1" stop-color="#fff" stop-opacity="0" />
+  </linearGradient>
+  <radialGradient id="llanta">
+    <stop offset="0" stop-color="#21447f" />
+    <stop offset="1" stop-color="#091531" />
+  </radialGradient>
+  <filter id="difuso"><feGaussianBlur stdDeviation="10" /></filter>
+</defs>
+
+<ellipse cx="480" cy="264" rx="400" ry="11" fill="#3ad6ff" opacity=".4" filter="url(#difuso)" />
+
+<g transform="translate(46 0)">
+  <!-- haz del faro -->
+  <path class="haz" d="M744 190 L960 118 L960 252 Z" fill="url(#haz)" />
+
+  <!-- alerón -->
+  <path d="M146 166 L142 132 M186 164 L184 132" stroke="#0a1634" stroke-width="5" />
+  <path d="M96 132 L214 126 L218 134 L100 142 Z" fill="#0f1f45" stroke="#7be6ff" stroke-width="1.5" stroke-linejoin="round" />
+
+  <!-- carrocería -->
+  <path d="M120 240 L114 204 C112 188 114 176 124 170 L140 166 C220 160 300 130 380 114 C430 104 480 104 520 114 C560 124 590 142 628 154 C670 160 722 174 744 196 C752 205 754 220 748 232 L744 240 L660 240 A50 50 0 1 0 560 240 L300 240 A50 50 0 1 0 200 240 Z" fill="url(#carro)" />
+  <!-- brillo de hombro -->
+  <path d="M150 168 C230 160 310 132 380 117 C430 108 480 108 518 117" fill="none" stroke="url(#reflejo)" stroke-width="6" stroke-linecap="round" />
+  <!-- contorno de luz -->
+  <path d="M124 170 L140 166 C220 160 300 130 380 114 C430 104 480 104 520 114 C560 124 590 142 628 154 C670 160 722 174 744 196 C752 205 754 220 748 232" fill="none" stroke="url(#borde)" stroke-width="2" />
+
+  <!-- cabina -->
+  <path d="M338 142 C380 122 440 112 504 118 C548 124 580 140 606 154 L338 148 Z" fill="url(#vidrio)" />
+  <path d="M470 118 L452 150" stroke="#0b1736" stroke-width="7" />
+  <path d="M362 138 C400 124 430 120 452 120 L440 140 Z" fill="#fff" opacity=".07" />
+
+  <!-- toma de aire lateral -->
+  <path d="M318 172 L384 180 L372 218 L312 210 Z" fill="#030816" stroke="#3ad6ff" stroke-opacity=".7" stroke-width="1.5" stroke-linejoin="round" />
+  <path d="M326 184 L376 190 M322 196 L372 202" stroke="#3ad6ff" stroke-opacity=".4" stroke-width="1.5" />
+
+  <!-- líneas de panel -->
+  <path d="M452 150 C456 190 458 214 458 236 M582 160 C590 190 592 214 590 236" stroke="#030816" stroke-width="1.6" opacity=".8" fill="none" />
+  <rect x="470" y="170" width="26" height="4" rx="2" fill="#030816" opacity=".8" />
+  <path d="M706 188 C600 178 470 178 392 166" fill="none" stroke="#3ad6ff" stroke-opacity=".6" stroke-width="1.5" />
+
+  <!-- faro y trompa -->
+  <path class="faro" d="M684 173 L743 193 L738 196 L680 179 Z" fill="#e8fbff" />
+  <path d="M688 241 L756 239 L760 245 L688 246 Z" fill="#06102a" stroke="#3ad6ff" stroke-width="1.4" stroke-linejoin="round" />
+  <path d="M690 206 L744 214 M692 214 L742 222" stroke="#3ad6ff" stroke-opacity=".5" stroke-width="1.5" />
+
+  <!-- cola: luz trasera, difusor -->
+  <path d="M114 190 L122 180 L150 176 L148 181 L124 186 Z" fill="#ff3b5c" />
+  <path d="M120 226 L190 226 M122 233 L190 233" stroke="#3ad6ff" stroke-opacity=".5" stroke-width="1.5" />
+
+  <!-- línea de luz inferior -->
+  <path d="M308 240 L652 240" stroke="#3ad6ff" stroke-width="2.2" />
+
+  <!-- ruedas -->
+  <g>
+    <circle cx="610" cy="216" r="47" fill="#02050f" />
+    <circle cx="610" cy="216" r="31" fill="url(#llanta)" stroke="#3ad6ff" stroke-opacity=".7" />
+    <rect x="627" y="197" width="9" height="17" rx="3" fill="#ffb347" />
+    <g class="radios" stroke="#9aeeff" stroke-width="3.2" stroke-linecap="round">
+      <path d="M610 216 L610 190 M610 216 L635 208 M610 216 L625 237 M610 216 L595 237 M610 216 L585 208" />
+    </g>
+    <circle cx="610" cy="216" r="6" fill="#9aeeff" />
+  </g>
+  <g>
+    <circle cx="250" cy="216" r="47" fill="#02050f" />
+    <circle cx="250" cy="216" r="31" fill="url(#llanta)" stroke="#3ad6ff" stroke-opacity=".7" />
+    <rect x="267" y="197" width="9" height="17" rx="3" fill="#ffb347" />
+    <g class="radios" stroke="#9aeeff" stroke-width="3.2" stroke-linecap="round">
+      <path d="M250 216 L250 190 M250 216 L275 208 M250 216 L265 237 M250 216 L235 237 M250 216 L225 208" />
+    </g>
+    <circle cx="250" cy="216" r="6" fill="#9aeeff" />
+  </g>
+</g>
+
+        </svg>

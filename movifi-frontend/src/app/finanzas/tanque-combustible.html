@@ -1,0 +1,143 @@
+@if (tanque(); as t) {
+  <div class="tanque" [class.activo]="borrador() !== null || modoCarga()">
+    <div class="info">
+      <p class="nivel" [class.vacia]="guardado() === null && borrador() === null">
+        @if (guardado() === null && borrador() === null) {
+          Marca tu nivel
+        } @else {
+          <b>{{ borrador() ?? guardado() }}</b><small> / 10</small>
+        }
+      </p>
+      <p class="lectura">
+        @for (l of lineas(); track l) {
+          <span>{{ l }}</span>
+        }
+      </p>
+      <div class="acciones">
+        <button type="button" [class.on]="modoCarga()" (click)="alternarCarga()" [disabled]="!listo() || guardado() === null" [title]="guardado() === null ? 'Marca primero tu nivel' : ''">Cargué</button>
+        <button type="button" (click)="store.viajeAbierto.set(true)">Viaje</button>
+      </div>
+    </div>
+
+    <div class="columna">
+      <svg class="bomba" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" />
+        <path d="M3 21h12" />
+        <path d="M7 8h4" />
+        <path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9l-3-3" />
+      </svg>
+      <span class="letra">F</span>
+
+      <div
+        #barra
+        class="barra"
+        [class.apagado]="!listo()"
+        role="slider"
+        tabindex="0"
+        aria-label="Nivel de combustible"
+        aria-valuemin="0"
+        aria-valuemax="10"
+        [attr.aria-valuenow]="mostrado()"
+        [attr.aria-valuetext]="resumen()"
+        [style.--g]="guardado() ?? 0"
+        (pointerdown)="empezar($event)"
+        (pointermove)="arrastrar($event)"
+        (pointerup)="terminar()"
+        (pointercancel)="terminar()"
+        (keydown)="teclado($event)"
+      >
+        @for (i of indices; track i) {
+          <i
+            class="seg"
+            [class.sube]="rango().sube"
+            [style.--c]="color(i)"
+            [style.--a]="frac(i, rango().solido)"
+            [style.--b]="frac(i, rango().hasta)"
+          ></i>
+        }
+        @if (borrador() !== null && guardado() !== null) {
+          <span class="marca-guardado" title="Nivel guardado"></span>
+        }
+      </div>
+
+      <span class="letra">E</span>
+    </div>
+
+    @if (analisis(); as a) {
+      <div class="detalle" role="group" aria-label="Detalle de la lectura">
+        @switch (a.tipo) {
+          @case ('primero') {
+            <strong>Nivel inicial: {{ a.nivel }} barras</strong>
+            @if (a.galones) {
+              <p>≈ {{ a.galones | number: '1.0-1' }} gal @if (a.autonomia) { · alcanza para unos {{ a.autonomia | number: '1.0-0' }} km }</p>
+            }
+            <label>Km del auto <input type="number" min="0" [ngModel]="kmEfectivo()" (ngModelChange)="kmEdit.set($event)" /></label>
+            <div class="botones">
+              <button class="btn btn-primario" type="button" [disabled]="guardando()" (click)="guardarLectura()">Guardar nivel</button>
+              <button class="btn" type="button" (click)="cancelar()">Cancelar</button>
+            </div>
+          }
+          @case ('baja') {
+            <strong>Bajó {{ a.barras | number: '1.0-1' }} {{ a.barras === 1 ? 'barra' : 'barras' }}</strong>
+            @if (a.galones) {
+              <p>≈ {{ a.galones | number: '1.0-1' }} gal @if (a.costo) { · unos {{ a.costo | soles }} de combustible }</p>
+            }
+            <label>Km actuales del auto <input type="number" min="0" [ngModel]="kmEfectivo()" (ngModelChange)="kmEdit.set($event)" /></label>
+            @if (a.kmRec) {
+              <p class="dato">Recorriste {{ a.kmRec }} km @if (a.rendimiento) { → rinde ≈ {{ a.rendimiento | number: '1.0-0' }} km/gal }</p>
+            } @else if (a.kmEst) {
+              <p class="dato">≈ {{ a.kmEst | number: '1.0-0' }} km recorridos (estimado)</p>
+              <p class="suave">Se suman a tu odómetro estimado. Si pones los km reales, uso esos.</p>
+            } @else {
+              <p class="suave">Pon los km actuales para medir tu rendimiento real.</p>
+            }
+            <div class="botones">
+              <button class="btn btn-primario" type="button" [disabled]="guardando()" (click)="guardarLectura()">Guardar lectura</button>
+              <button class="btn" type="button" (click)="cancelar()">Cancelar</button>
+            </div>
+          }
+          @case ('sube') {
+            <strong>Subió {{ a.barras | number: '1.0-1' }} {{ a.barras === 1 ? 'barra' : 'barras' }}</strong>
+            @if (a.galones) {
+              <p>≈ {{ a.galones | number: '1.0-1' }} gal. ¿Fue una carga?</p>
+            }
+            <label>Monto pagado (S/) <input type="number" min="1" [ngModel]="montoEfectivo()" (ngModelChange)="montoEdit.set($event)" /></label>
+            <div class="botones">
+              <button class="btn btn-primario" type="button" [disabled]="guardando() || !montoEfectivo()" (click)="guardarLectura(true)">Registrar carga</button>
+              <button class="btn" type="button" [disabled]="guardando()" (click)="guardarLectura()">Solo corregir</button>
+            </div>
+            <button class="enlace" type="button" (click)="cancelar()">Cancelar</button>
+          }
+        }
+      </div>
+    } @else if (modoCarga()) {
+      <div class="detalle" role="group" aria-label="Registrar carga">
+        <strong>¿Cuánto cargaste?</strong>
+        <label>Monto (S/) <input type="number" min="1" placeholder="50" [ngModel]="montoCarga()" (ngModelChange)="montoCarga.set($event)" autofocus /></label>
+        <label>Antes de cargar marcaba (barras) <input type="number" min="0" max="10" step="0.5" [ngModel]="nivelAntes()" (ngModelChange)="antesEdit.set($event)" /></label>
+        @if (consumoPrevio(); as c) {
+          <p class="suave">Desde tu última lectura gastaste ≈ {{ c.barras | number: '1.0-1' }} barras@if (c.km) { (≈ {{ c.km | number: '1.0-0' }} km) }.</p>
+        }
+        @if (barrasCarga(); as b) {
+          <p class="dato">≈ +{{ b | number: '1.0-1' }} barras → quedaría en {{ nivelCarga() }} / 10</p>
+          @if (desborda()) {
+            <p class="suave">Se pasa del tope: lo máximo es tanque lleno.</p>
+          }
+        }
+        <div class="botones">
+          <button class="btn btn-primario" type="button" [disabled]="guardando() || nivelCarga() === null" (click)="registrarCarga()">Registrar carga</button>
+          <button class="btn" type="button" (click)="cancelar()">Cancelar</button>
+        </div>
+      </div>
+    } @else if (mensaje(); as m) {
+      <div class="detalle" [class.error]="m.tipo === 'error'" role="status">
+        <p>{{ m.texto }}</p>
+      </div>
+    } @else if (sugerencia(); as s) {
+      <div class="detalle" role="status">
+        <p>Según tus viajes tu auto rinde ≈ <b>{{ s.valor | number: '1.0-0' }} km/gal</b>.</p>
+        <button class="btn" type="button" (click)="usarRendimiento(s.valor)">Usar este rendimiento</button>
+      </div>
+    }
+  </div>
+}

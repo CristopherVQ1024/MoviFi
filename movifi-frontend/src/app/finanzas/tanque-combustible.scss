@@ -1,0 +1,318 @@
+$mov: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+:host {
+  position: absolute;
+  top: 6%;
+  right: 3%;
+  bottom: 9%;
+  z-index: 6;
+  display: block;
+  width: 150px;
+}
+
+.tanque {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  height: 100%;
+}
+
+.columna {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 40px;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 0;
+  text-align: right;
+}
+
+.nivel {
+  margin: 0;
+  color: var(--texto);
+  font: 1.9rem / 1 var(--font-digital);
+  text-shadow: 0 0 14px rgba(58, 214, 255, 0.4);
+
+  b {
+    font-weight: 400;
+  }
+
+  small {
+    color: var(--texto-suave);
+    font-size: 0.85rem;
+    text-shadow: none;
+  }
+
+  &.vacia {
+    color: var(--acento);
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-shadow: none;
+  }
+}
+
+.bomba {
+  color: var(--acento);
+  filter: drop-shadow(0 0 6px rgba(58, 214, 255, 0.6));
+}
+
+.letra {
+  color: var(--texto-suave);
+  font: 0.7rem var(--font-digital);
+  letter-spacing: 0.1em;
+}
+
+.barra {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column-reverse;
+  gap: 3px;
+  width: 38px;
+  min-height: 150px;
+  padding: 5px;
+  border: 1px solid var(--linea);
+  border-radius: 11px;
+  background: rgba(5, 11, 26, 0.65);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--acento);
+    box-shadow: 0 0 18px -4px rgba(58, 214, 255, 0.6);
+    outline: none;
+  }
+
+  &.apagado {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// --a: hasta dónde llega lo guardado; --b: hasta dónde llega lo marcado (0..1 dentro de cada segmento)
+.seg {
+  --vacio: rgba(120, 170, 255, 0.1);
+  --sec: rgba(255, 111, 142, 0.35);
+  flex: 1;
+  border-radius: 3px;
+  background: linear-gradient(
+    to top,
+    var(--c) 0,
+    var(--c) calc(var(--a) * 100%),
+    var(--sec) calc(var(--a) * 100%),
+    var(--sec) calc(var(--b) * 100%),
+    var(--vacio) calc(var(--b) * 100%)
+  );
+  box-shadow: 0 0 calc(var(--a) * 8px) color-mix(in srgb, var(--c) 55%, transparent);
+
+  &.sube {
+    --sec: color-mix(in srgb, var(--c) 38%, transparent);
+  }
+}
+
+.marca-guardado {
+  position: absolute;
+  left: -10px;
+  bottom: calc(5px + (100% - 10px) * var(--g) / 10 - 5px);
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--texto);
+  pointer-events: none;
+}
+
+.lectura {
+  display: flex;
+  flex-direction: column;
+  max-width: 110px;
+  margin: 0;
+  color: var(--texto-suave);
+  font: 0.68rem / 1.35 var(--font-digital);
+}
+
+.acciones {
+  display: flex;
+  gap: 0.3rem;
+
+  button {
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--linea);
+    border-radius: 99px;
+    background: rgba(120, 170, 255, 0.08);
+    color: var(--acento);
+    font-size: 0.72rem;
+    font-weight: 600;
+
+    &:hover:not(:disabled),
+    &.on {
+      background: rgba(58, 214, 255, 0.2);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.detalle {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 270px;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(58, 214, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(9, 20, 44, 0.94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.75);
+  font-size: 0.85rem;
+  animation: aparece 0.25s $mov both;
+
+  strong {
+    font: 700 0.95rem var(--font-display);
+  }
+
+  p {
+    margin: 0;
+    color: var(--texto-suave);
+    line-height: 1.45;
+  }
+
+  .dato {
+    color: var(--acento);
+    font: 0.8rem var(--font-digital);
+  }
+
+  .suave {
+    font-size: 0.78rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--texto-suave);
+    font-size: 0.72rem;
+  }
+
+  input {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    background: rgba(5, 11, 26, 0.7);
+    color: var(--texto);
+    font: 0.95rem var(--font-digital);
+    color-scheme: dark;
+
+    &:focus {
+      outline: none;
+      border-color: var(--acento);
+    }
+  }
+
+  &.error {
+    border-color: rgba(255, 111, 142, 0.5);
+
+    p {
+      color: #ff8aa3;
+    }
+  }
+}
+
+.botones {
+  display: flex;
+  gap: 0.4rem;
+
+  .btn {
+    flex: 1;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.78rem;
+  }
+}
+
+.enlace {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  text-align: left;
+
+  &:hover {
+    color: var(--texto);
+  }
+}
+
+@keyframes aparece {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+@media (max-width: 700px) {
+  // el host cubre la escena para anclar el panel de detalle (position: fixed no funciona dentro del contenedor 3D)
+  :host {
+    inset: 0;
+    width: auto;
+    pointer-events: none;
+  }
+
+  // .tanque queda sin posicionar para que el panel .detalle se ancle a la escena completa
+  .tanque {
+    box-sizing: border-box;
+    width: max-content;
+    height: 100%;
+    margin-left: auto;
+    padding: 4% 2% 8% 0;
+    gap: 0.4rem;
+    pointer-events: auto;
+  }
+
+  .lectura {
+    display: none;
+  }
+
+  .nivel {
+    font-size: 1.5rem;
+  }
+
+  .acciones {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .detalle {
+    top: auto;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    width: auto;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detalle {
+    animation: none;
+  }
+}

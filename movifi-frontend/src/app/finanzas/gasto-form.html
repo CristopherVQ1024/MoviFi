@@ -1,0 +1,70 @@
+<div class="velo" (click)="cerrar()"></div>
+<aside class="panel" role="dialog" aria-label="Registrar gasto">
+  <header>
+    <h2>Registrar gasto</h2>
+    <button type="button" class="x" (click)="cerrar()" aria-label="Cerrar">✕</button>
+  </header>
+
+  <form (ngSubmit)="guardar()">
+    <div class="selector" role="group">
+      <button type="button" [class.on]="!programado()" (click)="programado.set(false)">Gasto libre</button>
+      <button type="button" [class.on]="programado()" (click)="programado.set(true)">Mantenimiento</button>
+    </div>
+
+    @if (programado()) {
+      <label class="campo">¿Cuál fue?
+        <select name="tipo" [(ngModel)]="tipoMantId">
+          <option [ngValue]="null" disabled>Elige uno…</option>
+          @for (t of tiposElegibles(); track t.id) {
+            <option [ngValue]="t.id">{{ t.nombre }}</option>
+          }
+        </select>
+      </label>
+    } @else {
+      <label class="campo">Categoría
+        <input name="categoria" list="cats" [(ngModel)]="categoria" placeholder="Combustible, lavado…" autocomplete="off" />
+        <datalist id="cats">
+          @for (c of sugeridas; track c) {
+            <option [value]="c"></option>
+          }
+        </datalist>
+      </label>
+    }
+
+    <div class="fila">
+      <label class="campo">Monto (S/)
+        <input name="monto" type="number" min="0" step="0.01" [(ngModel)]="monto" required autofocus />
+      </label>
+      <label class="campo">Fecha
+        <input name="fecha" type="date" [max]="hoy" [(ngModel)]="fecha" required />
+      </label>
+    </div>
+
+    @if (pistaCombustible(); as p) {
+      <p class="pista">≈ {{ p.galones.toFixed(1) }} galones · unos {{ p.km.toFixed(0) }} km de recorrido</p>
+    }
+
+    <label class="campo">Nota (opcional)
+      <input name="descripcion" [(ngModel)]="descripcion" placeholder="Ej. grifo de la Av. Arequipa" autocomplete="off" />
+    </label>
+
+    @if (programado()) {
+      <label class="campo">Kilometraje al hacerlo
+        <input name="km" type="number" min="0" [(ngModel)]="km" />
+        @if (esAntiguo()) {
+          <small>Es un servicio antiguo: pon los km que tenía el auto ese día. Si no los sabes, déjalo vacío y solo avisaré por fecha.</small>
+        } @else {
+          <small>Con esto calculo cuándo toca el próximo.</small>
+        }
+      </label>
+    }
+
+    @if (error()) {
+      <p class="msg-error">{{ error() }}</p>
+    }
+
+    <button class="btn btn-primario" type="submit" [disabled]="enviando() || !monto">
+      {{ enviando() ? 'Guardando…' : 'Guardar gasto' }}
+    </button>
+  </form>
+</aside>

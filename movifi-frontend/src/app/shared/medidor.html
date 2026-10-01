@@ -1,0 +1,40 @@
+<svg viewBox="0 0 400 400" class="medidor">
+  <defs>
+    <linearGradient id="arco" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f6bff" />
+      <stop offset="1" stop-color="#3ad6ff" />
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#16315f" stop-opacity=".9" />
+      <stop offset="1" stop-color="#050b1a" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle cx="200" cy="200" r="198" fill="url(#halo)" />
+  <path [attr.d]="arcoPath" class="pista" pathLength="100" />
+  <path
+    [attr.d]="arcoPath"
+    class="progreso"
+    pathLength="100"
+    [style.stroke-dasharray]="valor() + ' 100'"
+  />
+  @for (m of marcas; track $index) {
+    <line
+      [attr.x1]="m.x1"
+      [attr.y1]="m.y1"
+      [attr.x2]="m.x2"
+      [attr.y2]="m.y2"
+      [class.mayor]="m.mayor"
+      class="marca-tick"
+    />
+  }
+  @for (t of etiquetas; track t.texto) {
+    <text [attr.x]="t.x" [attr.y]="t.y" class="etiqueta">{{ t.texto }}</text>
+  }
+  <g class="aguja" [style.transform]="'rotate(' + angulo() + 'deg)'">
+    <path d="M196.5 226 L200 62 L203.5 226 Z" />
+  </g>
+  <circle cx="200" cy="200" r="20" class="eje" />
+  <circle cx="200" cy="200" r="7" class="eje-centro" />
+  <text x="200" y="292" class="cifra">{{ valor() }}<tspan class="unidad">{{ sufijo() }}</tspan></text>
+  <text x="200" y="316" class="rotulo">{{ etiqueta() }}</text>
+</svg>
