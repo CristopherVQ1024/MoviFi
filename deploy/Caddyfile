@@ -1,0 +1,16 @@
+# {$DOMINIO} viene del .env. Con un dominio real, Caddy pide y renueva el certificado HTTPS solo.
+{$DOMINIO} {
+	encode gzip zstd
+
+	# /api/xxx -> backend:3000/xxx
+	handle_path /api/* {
+		reverse_proxy backend:3000
+	}
+
+	# todo lo demás: la app Angular (cualquier ruta cae en index.html)
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

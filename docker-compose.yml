@@ -1,0 +1,57 @@
+# MoviFi: base de datos + backend + web (Caddy con el frontend). Variables en .env (ver deploy/generar-env.sh).
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: movifi_db
+      POSTGRES_USER: movifi
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # solo se ejecuta la primera vez, cuando la base está vacía
+      - ./movifi-backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U movifi -d movifi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./movifi-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGDATABASE: movifi_db
+      PGUSER: movifi
+      PGPASSWORD: ${DB_PASSWORD}
+      PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      MISTRAL_CHAT_MODEL: ${MISTRAL_CHAT_MODEL:-ministral-8b-latest}
+      CORS_ORIGIN: https://${DOMINIO}
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      DOMINIO: ${DOMINIO}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

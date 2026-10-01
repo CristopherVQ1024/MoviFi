@@ -1,0 +1,11 @@
+# Etapa 1: compila Angular. Etapa 2: Caddy sirve los archivos y reenvía /api al backend.
+FROM node:24-slim AS build
+WORKDIR /app
+COPY movifi-frontend/package*.json ./
+RUN npm ci
+COPY movifi-frontend/ ./
+RUN npx ng build --configuration production
+
+FROM caddy:2
+COPY --from=build /app/dist/movifi-frontend/browser /srv
+COPY deploy/Caddyfile /etc/caddy/Caddyfile

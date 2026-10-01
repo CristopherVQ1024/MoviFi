@@ -9,7 +9,8 @@ const { OAuth2Client } = require('google-auth-library');
 types.setTypeParser(1082, (valor) => valor);
 
 const app = express();
-app.use(cors());
+// en produccion el frontend vive en el mismo dominio (via proxy); CORS_ORIGIN, si existe, limita los origenes permitidos
+app.use(cors(process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split(',') } : undefined));
 app.use(express.json());
 
 // Express 4 no captura errores de handlers async y el proceso moriria: se responde 500 y el servidor sigue vivo
@@ -583,6 +584,12 @@ const toolsDefs = [
   { type: 'function', function: { name: 'obtener_combustible', description: 'Combustible del auto: grado, precio por galon, rendimiento km/galon, costo de combustible por km, y lo que el usuario suele gastar por carga y por mes', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'calcular_costo_por_km', description: 'Costo real por kilometro recorrido desde que se registro el auto (null si aun hay pocos km) y costo estimado solo de combustible', parameters: { type: 'object', properties: {}, required: [] } } }
 ];
+
+// estado del servicio y de la base de datos (para comprobar el despliegue)
+app.get('/health', async (req, res) => {
+  await pool.query('SELECT 1');
+  res.json({ ok: true });
+});
 
 // valida el id_token de Google, crea o recupera el usuario y devuelve un JWT propio
 app.post('/auth/google', async (req, res) => {
