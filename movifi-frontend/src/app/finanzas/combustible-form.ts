@@ -27,6 +27,14 @@ export class CombustibleForm {
   protected readonly capacidadOrigen = this.actual?.tanque.capacidad_origen ?? 'ia';
 
   protected readonly origen = this.actual?.rendimiento_origen ?? 'ia';
+
+  // equipo a gas GLP, se puede activar despues de registrar el auto
+  protected readonly glpActual = this.actual?.glp;
+  protected dual = this.glpActual?.activo ?? false;
+  protected glpCapacidad: number | null = this.glpActual?.tanque.capacidad_galones ?? null;
+  protected glpRendimiento: number | null = this.glpActual?.rendimiento_km_por_galon ?? null;
+  protected glpPrecio: number | null = this.glpActual?.precio_galon ?? null;
+  protected readonly glpOrigen = this.glpActual?.rendimiento_origen ?? 'estimado';
   protected enviando = signal(false);
   protected error = signal('');
 
@@ -43,7 +51,7 @@ export class CombustibleForm {
   }
 
   // solo se envía lo que el usuario cambió; null vuelve al valor automático (IA o precio de referencia)
-  protected async guardar(volverA?: 'estimado' | 'referencia'): Promise<void> {
+  protected async guardar(volverA?: 'estimado' | 'referencia' | 'glp-estimado' | 'glp-referencia'): Promise<void> {
     const cambios: Parameters<FinanzasStore['actualizarCombustible']>[0] = {};
     if (this.grado && this.grado !== this.actual?.grado) cambios.combustible_grado = this.grado;
     if (volverA === 'estimado') cambios.rendimiento_manual = null;
@@ -55,6 +63,17 @@ export class CombustibleForm {
     if (volverA === 'referencia') cambios.precio_galon = null;
     else if (this.precio && this.precio !== this.actual?.precio_galon && !cambios.combustible_grado) {
       cambios.precio_galon = this.precio;
+    }
+    if (this.dual !== (this.glpActual?.activo ?? false)) cambios.dual_glp = this.dual;
+    if (this.dual) {
+      const g = this.glpActual;
+      if (this.glpCapacidad && this.glpCapacidad !== g?.tanque.capacidad_galones) cambios.glp_capacidad = this.glpCapacidad;
+      if (volverA === 'glp-estimado') cambios.glp_rendimiento_manual = null;
+      else if (this.glpRendimiento && this.glpRendimiento !== g?.rendimiento_km_por_galon) {
+        cambios.glp_rendimiento_manual = this.glpRendimiento;
+      }
+      if (volverA === 'glp-referencia') cambios.glp_precio_galon = null;
+      else if (this.glpPrecio && this.glpPrecio !== g?.precio_galon) cambios.glp_precio_galon = this.glpPrecio;
     }
     if (!Object.keys(cambios).length) return this.cerrar();
 

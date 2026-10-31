@@ -1,27 +1,44 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ResultadoNivel } from '../core/api.service';
+import { LecturaNivel, ResultadoNivel, TipoCombustible } from '../core/api.service';
 import { SolesPipe } from '../shared/formato';
 import { FinanzasStore } from './finanzas.store';
 
-const BARRAS = 10;
 const redondear = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 const entre = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
+
+// gasolina se marca en medias barras de 10; el GLP en LEDs enteros de 4, con media LED de precisión de lectura
+const MEDIDOR = {
+  gasolina: { barras: 10, paso: 0.5, precision: 0.1, unidad: ['barra', 'barras'], nombre: 'combustible' },
+  glp: { barras: 4, paso: 1, precision: 0.5, unidad: ['LED', 'LEDs'], nombre: 'GLP' },
+} as const;
 
 @Component({
   selector: 'app-tanque-combustible',
   imports: [FormsModule, DecimalPipe, SolesPipe],
   templateUrl: './tanque-combustible.html',
   styleUrl: './tanque-combustible.scss',
+  host: { '[class.glp]': "tipo() === 'glp'" },
 })
 export class TanqueCombustible {
   protected store = inject(FinanzasStore);
   private barra = viewChild<ElementRef<HTMLElement>>('barra');
 
-  protected readonly indices = Array.from({ length: BARRAS }, (_, i) => i);
-  protected readonly tanque = this.store.tanque;
+  readonly tipo = input<TipoCombustible>('gasolina');
+  protected readonly cfg = computed(() => MEDIDOR[this.tipo()]);
+  protected readonly barras = computed(() => this.cfg().barras);
+  protected readonly indices = computed(() => Array.from({ length: this.barras() }, (_, i) => i));
+
+  private readonly fuente = computed(() => {
+    const c = this.store.combustible();
+    if (!c) return null;
+    return this.tipo() === 'glp' ? c.glp : { ...c, activo: true };
+  });
+  protected readonly tanque = computed(() => this.fuente()?.tanque ?? null);
+  // el medidor de GLP se ve apagado mientras el auto no tenga equipo a gas
+  protected readonly activo = computed(() => this.fuente()?.activo ?? false);
 
   // lo que el usuario está marcando (aún sin guardar) y los campos del detalle
   protected borrador = signal<number | null>(null);
@@ -36,9 +53,13 @@ export class TanqueCombustible {
   private temporizador: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly guardado = computed(() => this.tanque()?.nivel ?? null);
-  protected readonly listo = computed(() => !!this.tanque()?.galones_por_barra);
-  private readonly rendimiento = computed(() => this.store.combustible()?.rendimiento_km_por_galon ?? null);
-  private readonly precio = computed(() => this.store.combustible()?.precio_galon ?? null);
+  protected readonly listo = computed(() => this.activo() && !!this.tanque()?.galones_por_barra);
+  private readonly rendimiento = computed(() => this.fuente()?.rendimiento_km_por_galon ?? null);
+  private readonly precio = computed(() => this.fuente()?.precio_galon ?? null);
+
+  protected unidad(n: number): string {
+    return this.cfg().unidad[n === 1 ? 0 : 1];
+  }
 
   // barras que compra el monto escrito en "Cargué" y nivel resultante (tope: tanque lleno)
   protected readonly barrasCarga = computed(() => {
@@ -51,12 +72,12 @@ export class TanqueCombustible {
   protected readonly nivelCarga = computed(() => {
     const b = this.barrasCarga();
     const a = this.nivelAntes();
-    return b != null && a != null ? Math.min(redondear(a + b), BARRAS) : null;
+    return b != null && a != null ? Math.min(redondear(a + b), this.barras()) : null;
   });
   protected readonly desborda = computed(() => {
     const b = this.barrasCarga();
     const a = this.nivelAntes();
-    return b != null && a != null && a + b > BARRAS;
+    return b != null && a != null && a + b > this.barras();
   });
   // consumo entre la última lectura guardada y el momento de cargar
   protected readonly consumoPrevio = computed(() => {
@@ -100,7 +121,8 @@ export class TanqueCombustible {
       const costo = galones && this.precio() ? galones * this.precio()! : null;
       const kmN = this.kmEfectivo();
       const kmRec = t.km_nivel != null && kmN > t.km_nivel ? kmN - t.km_nivel : null;
-      let rendimiento = kmRec && galones && barras >= 1 ? kmRec / galones : null;
+      // mismo criterio que el backend, con un margen de lectura mayor al 50% no se calcula rendimiento
+      let rendimiento = kmRec && galones && this.cfg().precision / barras <= 0.5 ? kmRec / galones : null;
       if (rendimiento != null && (rendimiento < 5 || rendimiento > 150)) rendimiento = null;
       const kmEst = kmRec == null && galones && rend ? galones * rend : null;
       return { tipo: 'baja' as const, barras, galones, costo, kmRec, rendimiento, kmEst };
@@ -117,29 +139,33 @@ export class TanqueCombustible {
     return this.montoEdit() ?? (a?.tipo === 'sube' && a.montoEst ? Math.round(a.montoEst) : null);
   });
 
-  // si lo medido en viajes difiere más de 8% del rendimiento usado, se ofrece corregirlo (siempre con confirmación)
+  // si lo medido en viajes difiere del rendimiento usado más de 8% y más que su margen de error, se ofrece corregirlo
   protected readonly sugerencia = computed(() => {
-    const real = this.store.combustible()?.rendimiento_real;
+    const real = this.fuente()?.rendimiento_real;
     const usado = this.rendimiento();
-    return real && usado && Math.abs(real.valor - usado) / usado > 0.08 ? real : null;
+    if (!real || !usado) return null;
+    const dif = Math.abs(real.valor - usado) / usado;
+    return dif > 0.08 && Math.abs(real.valor - usado) > real.valor * real.margen_error ? real : null;
   });
 
   protected readonly resumen = computed(() => {
     const t = this.tanque();
     if (!t) return '';
+    if (!this.activo()) return 'Sin equipo GLP';
     if (!t.galones_por_barra) return 'Indica la capacidad del tanque en Ajustar.';
-    if (t.nivel === null && this.borrador() === null) return 'Toca la barra para marcar tu nivel.';
+    if (t.nivel === null && this.borrador() === null) return 'Toca el medidor para marcar tu nivel.';
     const n = this.borrador() ?? t.nivel!;
     const gal = n * t.galones_por_barra;
     const km = this.rendimiento() ? ` · ~${Math.round(gal * this.rendimiento()!)} km` : '';
-    return `${n} / ${BARRAS} barras · ${gal.toFixed(1)} gal${km}`;
+    return `${n} / ${this.barras()} ${this.unidad(n)} · ${gal.toFixed(1)} gal${km}`;
   });
 
-  // galones y autonomía del nivel mostrado, para la columna de texto junto a la barra
+  // galones y autonomía del nivel mostrado, para la columna de texto junto al medidor
   protected readonly lineas = computed(() => {
     const t = this.tanque();
-    const n = this.borrador() ?? t?.nivel ?? null;
-    if (!t?.galones_por_barra) return t ? ['Indica la capacidad', 'en Ajustar'] : [];
+    if (!t || !this.activo()) return [];
+    const n = this.borrador() ?? t.nivel ?? null;
+    if (!t.galones_por_barra) return ['Indica la capacidad', 'en Ajustar'];
     if (n === null) return [];
     const gal = n * t.galones_por_barra;
     const rend = this.rendimiento();
@@ -151,10 +177,11 @@ export class TanqueCombustible {
   }
 
   protected color(i: number): string {
+    if (this.tipo() === 'glp') return i === 0 ? '#ff6f8e' : '#4ae3b5';
     return i < 2 ? '#ff6f8e' : i < 4 ? '#ffb347' : '#3ad6ff';
   }
 
-  // ---- interacción con la barra (click, arrastre o teclado), en pasos de media barra ----
+  // ---- interacción con el medidor (click, arrastre o teclado), en el paso de cada medidor ----
   protected empezar(e: PointerEvent): void {
     if (!this.listo()) return;
     this.mensaje.set(null);
@@ -176,17 +203,19 @@ export class TanqueCombustible {
     const el = this.barra()?.nativeElement;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const valor = Math.round(entre((r.bottom - e.clientY) / r.height, 0, 1) * BARRAS * 2) / 2;
+    const paso = this.cfg().paso;
+    const valor = Math.round((entre((r.bottom - e.clientY) / r.height, 0, 1) * this.barras()) / paso) * paso;
     this.borrador.set(valor === this.guardado() ? null : valor);
   }
 
   protected teclado(e: KeyboardEvent): void {
     if (!this.listo()) return;
     const actual = this.borrador() ?? this.guardado() ?? 0;
-    const paso: Record<string, number> = { ArrowUp: 0.5, ArrowRight: 0.5, ArrowDown: -0.5, ArrowLeft: -0.5 };
+    const p = this.cfg().paso;
+    const paso: Record<string, number> = { ArrowUp: p, ArrowRight: p, ArrowDown: -p, ArrowLeft: -p };
     if (e.key in paso) {
       e.preventDefault();
-      this.borrador.set(entre(actual + paso[e.key], 0, BARRAS));
+      this.borrador.set(entre(actual + paso[e.key], 0, this.barras()));
     } else if (e.key === 'Escape') {
       this.cancelar();
     }
@@ -229,10 +258,10 @@ export class TanqueCombustible {
     await this.enviar({ nivel, monto, nivel_antes: antes !== null && antes < (this.guardado() ?? 0) ? antes : null });
   }
 
-  private async enviar(d: { nivel: number; km?: number | null; monto?: number | null; nivel_antes?: number | null }): Promise<void> {
+  private async enviar(d: LecturaNivel): Promise<void> {
     this.guardando.set(true);
     try {
-      const r = await this.store.guardarNivel(d);
+      const r = await this.store.guardarNivel({ ...d, combustible: this.tipo() });
       this.cancelar();
       this.avisar('ok', this.textoResultado(r, d.monto ?? 0));
     } catch (e) {
@@ -245,12 +274,16 @@ export class TanqueCombustible {
   private textoResultado(r: ResultadoNivel, monto: number): string {
     if (r.tramo) {
       const t = r.tramo;
-      const base = `Gastaste ≈ ${redondear(t.barras)} barras (${t.galones.toFixed(1)} gal${t.costo ? ` · S/ ${t.costo.toFixed(0)}` : ''}).`;
-      if (t.rendimiento) return `${base} Recorriste ${t.km_recorridos} km: rindes ≈ ${t.rendimiento.toFixed(0)} km/gal.`;
+      const base = `Gastaste ≈ ${redondear(t.barras)} ${this.unidad(t.barras)} (${t.galones.toFixed(1)} gal${t.costo ? ` · S/ ${t.costo.toFixed(0)}` : ''}).`;
+      const otro = t.combustible === 'glp' ? 'gasolina' : 'GLP';
+      const descuento = t.mixto && t.km_otro_combustible ? ` descontando ≈ ${Math.round(t.km_otro_combustible)} km con ${otro}` : '';
+      if (t.rendimiento) return `${base} Recorriste ${t.km_recorridos} km${descuento}: rindes ≈ ${t.rendimiento.toFixed(0)} km/gal${t.margen_error ? ` (± ${Math.round(t.margen_error * 100)}%)` : ''}.`;
       if (t.km_estimados) return `${base} Sumé ≈ ${Math.round(t.km_estimados)} km a tu odómetro estimado (≈ ${r.odometro.estimado.toLocaleString('es-PE')} km).`;
+      if (t.mixto) return `${base} Parte de esos km fueron con ${otro}, así que esta vez no pude medir tu rendimiento.`;
       return `${base} Actualiza el odómetro para calcular tu rendimiento real.`;
     }
-    return monto ? `Carga de S/ ${monto} registrada. El medidor quedó en ${r.nivel} barras.` : `Nivel guardado: ${r.nivel} barras.`;
+    const u = this.unidad(r.nivel);
+    return monto ? `Carga de S/ ${monto} registrada. El medidor quedó en ${r.nivel} ${u}.` : `Nivel guardado: ${r.nivel} ${u}.`;
   }
 
   private avisar(tipo: 'ok' | 'error', texto: string): void {
@@ -260,9 +293,10 @@ export class TanqueCombustible {
   }
 
   protected async usarRendimiento(valor: number): Promise<void> {
+    const v = redondear(valor);
     try {
-      await this.store.actualizarCombustible({ rendimiento_manual: redondear(valor) });
-      this.avisar('ok', `Listo: ahora uso ${redondear(valor)} km/gal.`);
+      await this.store.actualizarCombustible(this.tipo() === 'glp' ? { glp_rendimiento_manual: v } : { rendimiento_manual: v });
+      this.avisar('ok', `Listo: ahora uso ${v} km/gal.`);
     } catch {
       this.avisar('error', 'No se pudo actualizar el rendimiento.');
     }

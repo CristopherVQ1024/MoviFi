@@ -71,3 +71,21 @@ form {
     order: -1;
   }
 }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+
+  input {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--acento);
+  }
+}
+
+.campo small {
+  line-height: 1.4;
+}

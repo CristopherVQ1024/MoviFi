@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Viaje } from '../core/api.service';
+import { TipoCombustible, Viaje } from '../core/api.service';
 import { SolesPipe } from '../shared/formato';
 import { FinanzasStore } from './finanzas.store';
 
@@ -18,6 +18,8 @@ export class ViajeForm {
   protected km: number | null = null;
   protected idaVuelta = true;
   protected peajes: number | null = null;
+  // en un auto dual el viaje se calcula por defecto con GLP
+  protected combustible: TipoCombustible = 'glp';
 
   protected calculando = signal(false);
   protected resultado = signal<Viaje | null>(null);
@@ -33,14 +35,19 @@ export class ViajeForm {
     this.calculando.set(true);
     try {
       this.resultado.set(
-        await this.store.estimarViaje({ km: this.km, ida_vuelta: this.idaVuelta, peajes: this.peajes }),
+        await this.store.estimarViaje({
+          km: this.km,
+          ida_vuelta: this.idaVuelta,
+          peajes: this.peajes,
+          combustible: this.store.glp()?.activo ? this.combustible : 'gasolina',
+        }),
       );
     } catch (e) {
       this.resultado.set(null);
       const status = (e as HttpErrorResponse).status;
       this.error.set(
         status === 409
-          ? 'Primero configura el rendimiento y el precio del combustible en "Ajustar".'
+          ? 'Primero configura el rendimiento, el precio y la capacidad del combustible en "Ajustar".'
           : 'No se pudo calcular el viaje. Revisa los datos.',
       );
     } finally {

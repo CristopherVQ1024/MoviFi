@@ -61,6 +61,13 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
 }
 
+.sello {
+  color: #4ae3b5;
+  font: 700 0.72rem / 22px var(--font-digital);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 8px rgba(74, 227, 181, 0.6);
+}
+
 .bomba {
   color: var(--acento);
   filter: drop-shadow(0 0 6px rgba(58, 214, 255, 0.6));
@@ -100,6 +107,19 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
     cursor: not-allowed;
     opacity: 0.5;
   }
+
+  // GLP con 4 LEDs redondos como los del conmutador del equipo a gas
+  &.leds {
+    justify-content: space-evenly;
+    gap: 0;
+
+    .seg {
+      flex: none;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+    }
+  }
 }
 
 // --a: hasta dónde llega lo guardado; --b: hasta dónde llega lo marcado (0..1 dentro de cada segmento)
@@ -126,7 +146,7 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
 .marca-guardado {
   position: absolute;
   left: -10px;
-  bottom: calc(5px + (100% - 10px) * var(--g) / 10 - 5px);
+  bottom: calc(5px + (100% - 10px) * var(--g) / var(--n) - 5px);
   width: 0;
   height: 0;
   border-top: 5px solid transparent;
@@ -262,6 +282,42 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
 }
 
+// medidor GLP a la izquierda de la escena, en espejo del de gasolina
+:host(.glp) {
+  right: auto;
+  left: 3%;
+
+  .tanque {
+    flex-direction: row-reverse;
+  }
+
+  .info {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .marca-guardado {
+    left: auto;
+    right: -10px;
+    border-left: 0;
+    border-right: 7px solid var(--texto);
+  }
+
+  .detalle {
+    right: auto;
+    left: calc(100% + 12px);
+  }
+}
+
+// sin equipo GLP el medidor queda opaco; solo el boton para activarlo conserva su color
+.tanque.inactivo {
+  .columna,
+  .nivel {
+    opacity: 0.4;
+    filter: grayscale(0.7);
+  }
+}
+
 @keyframes aparece {
   from {
     opacity: 0;
@@ -278,8 +334,11 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
 
   // .tanque queda sin posicionar para que el panel .detalle se ancle a la escena completa
+  // nivel y botones van sobre la columna para dejar libre el centro a los dos medidores
   .tanque {
     box-sizing: border-box;
+    flex-direction: column;
+    align-items: flex-end;
     width: max-content;
     height: 100%;
     margin-left: auto;
@@ -288,17 +347,48 @@ $mov: cubic-bezier(0.2, 0.7, 0.2, 1);
     pointer-events: auto;
   }
 
+  :host(.glp) .tanque {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+    padding: 4% 0 8% 2%;
+  }
+
+  .info {
+    flex: none;
+    gap: 0.3rem;
+  }
+
+  .columna {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .barra {
+    min-height: 0;
+  }
+
+  :host(.glp) .detalle {
+    right: 0.6rem;
+    left: 0.6rem;
+  }
+
   .lectura {
     display: none;
   }
 
   .nivel {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
   }
 
   .acciones {
     flex-direction: column;
     align-items: flex-end;
+  }
+
+  :host(.glp) .acciones {
+    align-items: flex-start;
   }
 
   .detalle {

@@ -21,11 +21,19 @@ export interface Vehiculo {
   capacidad_manual: string | null;
   nivel_combustible: string | null;
   km_nivel: number | null;
+  dual_glp: boolean;
+  glp_capacidad: string | null;
+  glp_precio_galon: string | null;
+  glp_rendimiento_manual: string | null;
 }
+
+// medidores del auto, gasolina de 10 barras y si es dual GLP de 4 LEDs
+export type TipoCombustible = 'gasolina' | 'glp';
 
 export const GRADOS_COMBUSTIBLE = ['Regular 90', 'Premium 95', 'Premium 97', 'Diésel', 'GLP', 'GNV'];
 
 export interface Tanque {
+  barras: number;
   capacidad_galones: number | null;
   capacidad_origen: 'manual' | 'ia';
   galones_por_barra: number | null;
@@ -53,15 +61,20 @@ export interface Nota {
 }
 
 export interface Tramo {
+  combustible: TipoCombustible;
+  mixto: boolean;
+  km_otro_combustible: number | null;
   barras: number;
   galones: number;
   costo: number | null;
   km_recorridos: number | null;
   rendimiento: number | null;
+  margen_error: number | null;
   km_estimados: number | null;
 }
 
 export interface ResultadoNivel {
+  combustible: TipoCombustible;
   nivel: number;
   tramo: Tramo | null;
   subio: { barras: number; galones: number; monto_estimado: number | null } | null;
@@ -70,9 +83,11 @@ export interface ResultadoNivel {
 }
 
 export interface Viaje {
+  combustible: TipoCombustible;
   km_total: number;
   galones: number;
   barras: number | null;
+  de_barras: number;
   costo_combustible: number;
   peajes: number;
   total: number;
@@ -85,9 +100,25 @@ export interface Viaje {
   veredicto: { veredicto: 'si' | 'justo' | 'no' | 'sin-presupuesto'; sobra?: number; faltan?: number; usa_colchon?: number };
 }
 
+export interface RendimientoReal {
+  valor: number;
+  tramos: number;
+  margen_error: number;
+}
+
+export interface CombustibleGlp {
+  activo: boolean;
+  tanque: Tanque;
+  rendimiento_real: RendimientoReal | null;
+  precio_galon: number | null;
+  rendimiento_km_por_galon: number | null;
+  rendimiento_origen: 'manual' | 'estimado';
+  costo_por_km: number | null;
+}
+
 export interface Combustible {
   tanque: Tanque;
-  rendimiento_real: { valor: number; tramos: number } | null;
+  rendimiento_real: RendimientoReal | null;
   grado: string | null;
   precio_galon: number | null;
   rendimiento_km_por_galon: number | null;
@@ -97,6 +128,7 @@ export interface Combustible {
   promedio_por_carga: number | null;
   km_por_carga: number | null;
   cargas: number;
+  glp: CombustibleGlp;
 }
 
 export interface Libre {
@@ -167,6 +199,24 @@ export interface Dashboard {
   odometro: Odometro;
 }
 
+export interface NuevoVehiculo {
+  marca: string;
+  modelo: string;
+  anio: number;
+  placa: string;
+  combustible_grado: string;
+  dual_glp: boolean;
+  glp_capacidad: number | null;
+}
+
+export interface LecturaNivel {
+  nivel: number;
+  km?: number | null;
+  monto?: number | null;
+  nivel_antes?: number | null;
+  combustible?: TipoCombustible;
+}
+
 export interface NuevoGasto {
   tipo: 'programado' | 'no_programado';
   categoria: string;
@@ -195,8 +245,7 @@ export class ApiService {
   }
 
   vehiculos = () => this.get<Vehiculo[]>('/vehiculos');
-  crearVehiculo = (d: { marca: string; modelo: string; anio: number; placa: string; combustible_grado: string }) =>
-    this.post<unknown>('/vehiculos', d);
+  crearVehiculo = (d: NuevoVehiculo) => this.post<unknown>('/vehiculos', d);
   actualizarVehiculo = (
     id: number,
     d: {
@@ -207,6 +256,10 @@ export class ApiService {
       precio_galon?: number | null;
       combustible_mensual?: number | null;
       capacidad_manual?: number | null;
+      dual_glp?: boolean;
+      glp_capacidad?: number | null;
+      glp_precio_galon?: number | null;
+      glp_rendimiento_manual?: number | null;
     },
   ) =>
     this.patch<unknown>(`/vehiculos/${id}`, d);
@@ -225,9 +278,9 @@ export class ApiService {
   crearGasto = (id: number, g: NuevoGasto) => this.post<unknown>(`/vehiculos/${id}/gastos`, g);
   eliminarGasto = (id: number) => this.delete<unknown>(`/gastos/${id}`);
 
-  fijarNivel = (id: number, d: { nivel: number; km?: number | null; monto?: number | null; nivel_antes?: number | null }) =>
+  fijarNivel = (id: number, d: LecturaNivel) =>
     firstValueFrom(this.http.put<ResultadoNivel>(`${API_URL}/vehiculos/${id}/nivel-combustible`, d));
-  estimarViaje = (id: number, d: { km: number; ida_vuelta: boolean; peajes: number | null }) =>
+  estimarViaje = (id: number, d: { km: number; ida_vuelta: boolean; peajes: number | null; combustible?: TipoCombustible }) =>
     this.post<Viaje>(`/vehiculos/${id}/estimar-viaje`, d);
 
   notas = (id: number) => this.get<Nota[]>(`/vehiculos/${id}/notas`);

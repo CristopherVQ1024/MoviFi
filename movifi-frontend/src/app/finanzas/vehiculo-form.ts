@@ -18,6 +18,8 @@ export class VehiculoForm {
   protected anio: number | null = null;
   protected placa = '';
   protected combustible = 'Regular 90';
+  protected dual = false;
+  protected glpCapacidad: number | null = null;
   protected readonly grados = GRADOS_COMBUSTIBLE;
   protected enviando = signal(false);
   protected error = signal('');
@@ -33,6 +35,8 @@ export class VehiculoForm {
         anio: this.anio,
         placa: this.placa.trim().toUpperCase(),
         combustible_grado: this.combustible,
+        dual_glp: this.dual,
+        glp_capacidad: this.dual ? this.glpCapacidad : null,
       });
     } catch {
       this.error.set('No pudimos registrar el auto. Revisa los datos e intenta de nuevo.');

@@ -14,7 +14,7 @@ app.use(cors(process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split('
 app.use(express.json());
 
 // Express 4 no captura errores de handlers async y el proceso moriria: se responde 500 y el servidor sigue vivo
-for (const metodo of ['get', 'post', 'patch', 'delete']) {
+for (const metodo of ['get', 'post', 'put', 'patch', 'delete']) {
   const original = app[metodo].bind(app);
   app[metodo] = (ruta, ...handlers) => original(ruta, ...handlers.map((h) => (req, res, next) =>
     Promise.resolve(h(req, res, next)).catch((e) => {
@@ -185,39 +185,59 @@ async function calcularCostoPorKm(v) {
   return { costo_por_km: Number(g.rows[0].total) / recorridos, km_recorridos: recorridos };
 }
 
-// ---------- tanque: 10 barras ----------
+// ---------- tanques, gasolina de 10 barras y en autos duales GLP de 4 LEDs ----------
 const BARRAS = 10;
+// cada medidor con su precision de lectura y las columnas donde guarda su nivel
+const MEDIDORES = {
+  gasolina: { barras: BARRAS, precision: 0.1, nivel: 'nivel_combustible', km: 'km_nivel', actualizado: 'nivel_actualizado', categoria: 'Combustible' },
+  glp: { barras: 4, precision: 0.5, nivel: 'glp_nivel', km: 'glp_km_nivel', actualizado: 'glp_nivel_actualizado', categoria: 'Combustible GLP' }
+};
+// el GLP tiene menos energia por galon, sin dato propio se asume que rinde 15% menos que la gasolina
+const FACTOR_GLP = 0.85;
 
-function datosTanque(v) {
-  const capacidad = Number(v.capacidad_manual ?? v.capacidad_tanque_galones) || null;
-  const precio = v.precio_galon != null ? Number(v.precio_galon) : null;
-  const rendimiento = Number(v.rendimiento_manual ?? v.rendimiento_km_por_galon) || null;
-  const galPorBarra = capacidad ? capacidad / BARRAS : null;
-  const nivel = v.nivel_combustible != null ? Number(v.nivel_combustible) : null;
+const combustibleDe = (x) => (x === 'glp' ? 'glp' : 'gasolina');
+
+function rendimientoDe(v, comb) {
+  const gasolina = Number(v.rendimiento_manual ?? v.rendimiento_km_por_galon) || null;
+  if (comb === 'gasolina') return gasolina;
+  return Number(v.glp_rendimiento_manual) || (gasolina ? gasolina * FACTOR_GLP : null);
+}
+
+function datosTanque(v, comb = 'gasolina') {
+  const m = MEDIDORES[comb];
+  const glp = comb === 'glp';
+  const capacidad = Number(glp ? v.glp_capacidad : (v.capacidad_manual ?? v.capacidad_tanque_galones)) || null;
+  const precioCol = glp ? v.glp_precio_galon : v.precio_galon;
+  const precio = precioCol != null ? Number(precioCol) : null;
+  const rendimiento = rendimientoDe(v, comb);
+  const galPorBarra = capacidad ? capacidad / m.barras : null;
+  const nivel = v[m.nivel] != null ? Number(v[m.nivel]) : null;
   const galones = nivel != null && galPorBarra ? nivel * galPorBarra : null;
   return {
-    capacidad, precio, rendimiento, galPorBarra, nivel, galones,
+    capacidad, precio, rendimiento, galPorBarra, nivel, galones, barras: m.barras,
     costoBarra: galPorBarra && precio ? galPorBarra * precio : null,
     autonomia: galones != null && rendimiento ? galones * rendimiento : null
   };
 }
 
-function describirTanque(v) {
-  const d = datosTanque(v);
+function describirTanque(v, comb = 'gasolina') {
+  const m = MEDIDORES[comb];
+  const d = datosTanque(v, comb);
   return {
+    barras: m.barras,
     capacidad_galones: d.capacidad,
-    capacidad_origen: v.capacidad_manual != null ? 'manual' : 'ia',
+    capacidad_origen: comb === 'glp' || v.capacidad_manual != null ? 'manual' : 'ia',
     galones_por_barra: d.galPorBarra,
     costo_por_barra: d.costoBarra,
     nivel: d.nivel,
     galones: d.galones,
     autonomia_km: d.autonomia,
-    actualizado: v.nivel_actualizado ?? null,
-    km_nivel: v.km_nivel ?? null
+    actualizado: v[m.actualizado] ?? null,
+    km_nivel: v[m.km] ?? null
   };
 }
 
-// Odometro estimado: el que registro el usuario mas los km que aportan las lecturas del medidor desde entonces.
+// Odometro estimado: el que registro el usuario mas los km que aportan las lecturas de ambos medidores desde entonces.
 async function odometroEstimado(v) {
   const r = await pool.query(
     'SELECT COALESCE(SUM(km_estimados),0) AS extra FROM lecturas_combustible WHERE vehiculo_id=$1 AND fecha > COALESCE($2::timestamptz, to_timestamp(0))',
@@ -238,14 +258,17 @@ async function reiniciarRecorrido(v) {
   return odometroEstimado({ ...v, ...up.rows[0] });
 }
 
-// Fija el nivel del medidor (en barras). El consumo desde la ultima lectura es: nivel anterior + lo comprado - nivel nuevo.
+// Fija el nivel de un medidor (gasolina en barras, GLP en LEDs). El consumo desde la ultima lectura es: nivel anterior + lo comprado - nivel nuevo.
 // Si hay consumo, estima el costo y, sin km reales, los km recorridos (que se suman al odometro estimado).
 // `nivel_antes` (solo con una carga) es lo que marcaba el medidor justo antes de cargar: primero se registra ese consumo.
-async function registrarNivel(v, { nivel, km, monto, nivel_antes }) {
-  let d = datosTanque(v);
-  if (!d.galPorBarra) return { status: 409, error: 'falta la capacidad del tanque' };
+async function registrarNivel(v, { nivel, km, monto, nivel_antes, combustible }) {
+  const comb = combustibleDe(combustible);
+  if (comb === 'glp' && !v.dual_glp) return { status: 409, error: 'el auto no tiene equipo GLP' };
+  const m = MEDIDORES[comb];
+  let d = datosTanque(v, comb);
+  if (!d.galPorBarra) return { status: 409, error: comb === 'glp' ? 'falta la capacidad del tanque GLP' : 'falta la capacidad del tanque' };
   const nuevo = Math.round(Number(nivel) * 10) / 10;
-  if (!(nuevo >= 0 && nuevo <= BARRAS)) return { status: 400, error: 'nivel invalido' };
+  if (!(nuevo >= 0 && nuevo <= m.barras)) return { status: 400, error: 'nivel invalido' };
   const kmAhora = km != null && km !== '' ? Number(km) : v.km_actual;
   if (!(kmAhora >= 0 && kmAhora <= 3000000)) return { status: 400, error: 'km invalido' };
   if (kmAhora < v.km_actual) return { status: 400, error: 'el odometro no puede ser menor al actual' };
@@ -255,12 +278,12 @@ async function registrarNivel(v, { nivel, km, monto, nivel_antes }) {
   if (nivel_antes != null && nivel_antes !== '') {
     const antes = Math.round(Number(nivel_antes) * 10) / 10;
     if (!cargado) return { status: 400, error: 'nivel_antes solo aplica al registrar una carga' };
-    if (!(antes >= 0 && antes <= BARRAS)) return { status: 400, error: 'nivel invalido' };
+    if (!(antes >= 0 && antes <= m.barras)) return { status: 400, error: 'nivel invalido' };
     if (d.nivel != null && antes < d.nivel) {
-      previo = await registrarNivel(v, { nivel: antes, km });
+      previo = await registrarNivel(v, { nivel: antes, km, combustible: comb });
       if (previo.error) return previo;
       v = await vehiculoDeUsuario(v.id, v.usuario_id);
-      d = datosTanque(v);
+      d = datosTanque(v, comb);
     }
   }
 
@@ -272,13 +295,26 @@ async function registrarNivel(v, { nivel, km, monto, nivel_antes }) {
   let subio = null;
   if (prev != null && consumoBarras > (cargado ? 0.25 : 0)) {
     const galones = consumoBarras * d.galPorBarra;
-    const kmRec = v.km_nivel != null && kmAhora > v.km_nivel ? kmAhora - v.km_nivel : null;
-    // el rendimiento solo es creible con al menos 1 barra consumida y km conocidos
-    let rendimiento = kmRec && consumoBarras >= 1 ? kmRec / galones : null;
+    const kmRec = v[m.km] != null && kmAhora > v[m.km] ? kmAhora - v[m.km] : null;
+    // en un dual, lo que bajo el otro medidor en el mismo intervalo se descuenta como km hechos con ese combustible
+    let kmOtro = 0;
+    if (v.dual_glp && kmRec) {
+      const otro = comb === 'glp' ? 'gasolina' : 'glp';
+      const r = await pool.query(
+        'SELECT COALESCE(SUM(galones_consumidos),0) AS gal FROM lecturas_combustible WHERE vehiculo_id=$1 AND combustible=$2 AND fecha > COALESCE($3::timestamptz, to_timestamp(0))',
+        [v.id, otro, v[m.actualizado]]);
+      const galOtro = Number(r.rows[0].gal);
+      if (galOtro > 0) kmOtro = galOtro * (rendimientoDe(v, otro) ?? Infinity);
+    }
+    const mixto = kmOtro > 0;
+    const kmPropios = kmRec != null ? kmRec - kmOtro : null;
+    // margen de error relativo, lectura del medidor mas un 25% de los km atribuidos al otro combustible; si pasa del 50% no se guarda rendimiento
+    const margen = m.precision / consumoBarras + (mixto && kmPropios > 0 ? (0.25 * kmOtro) / kmPropios : 0);
+    let rendimiento = kmPropios > 0 && margen <= 0.5 ? kmPropios / galones : null;
     if (rendimiento != null && !(rendimiento >= 5 && rendimiento <= 150)) rendimiento = null;
     // sin km reales, los km recorridos se estiman con el rendimiento del auto
     const kmEstimados = kmRec == null && d.rendimiento ? galones * d.rendimiento : null;
-    tramo = { barras: consumoBarras, galones, costo: d.precio ? galones * d.precio : null, km_recorridos: kmRec, rendimiento, km_estimados: kmEstimados };
+    tramo = { combustible: comb, barras: consumoBarras, galones, costo: d.precio ? galones * d.precio : null, km_recorridos: kmRec, mixto, km_otro_combustible: mixto ? kmOtro : null, rendimiento, margen_error: rendimiento != null ? margen : null, km_estimados: kmEstimados };
   }
   if (prev != null && nuevo > prev) {
     subio = { barras: nuevo - prev, galones: (nuevo - prev) * d.galPorBarra, monto_estimado: d.costoBarra ? (nuevo - prev) * d.costoBarra : null };
@@ -287,39 +323,41 @@ async function registrarNivel(v, { nivel, km, monto, nivel_antes }) {
   let gasto = null;
   if (cargado) {
     const g = await pool.query(
-      "INSERT INTO gastos (vehiculo_id,tipo,categoria,monto,descripcion,fecha,fecha_registro,km) VALUES ($1,'no_programado','Combustible',$2,'',$3,now(),$4) RETURNING *",
-      [v.id, cargado, hoyLocal(), kmAhora]);
+      "INSERT INTO gastos (vehiculo_id,tipo,categoria,monto,descripcion,fecha,fecha_registro,km) VALUES ($1,'no_programado',$2,$3,'',$4,now(),$5) RETURNING *",
+      [v.id, m.categoria, cargado, hoyLocal(), kmAhora]);
     gasto = g.rows[0];
   }
   await pool.query(
-    'INSERT INTO lecturas_combustible (vehiculo_id,fecha,nivel_anterior,nivel,monto_cargado,km,km_recorridos,galones_consumidos,costo_estimado,rendimiento,km_estimados) VALUES ($1,clock_timestamp(),$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-    [v.id, prev, nuevo, cargado, kmAhora, tramo?.km_recorridos ?? null, tramo?.galones ?? null, tramo?.costo ?? null, tramo?.rendimiento ?? null, tramo?.km_estimados ?? 0]);
+    'INSERT INTO lecturas_combustible (vehiculo_id,combustible,fecha,nivel_anterior,nivel,monto_cargado,km,km_recorridos,galones_consumidos,costo_estimado,rendimiento,margen_error,km_estimados) VALUES ($1,$2,clock_timestamp(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+    [v.id, comb, prev, nuevo, cargado, kmAhora, tramo?.km_recorridos ?? null, tramo?.galones ?? null, tramo?.costo ?? null, tramo?.rendimiento ?? null, tramo?.margen_error ?? null, tramo?.km_estimados ?? 0]);
   // si el usuario dio un odometro mayor, ese valor es el real y el estimado vuelve a partir de ahi
   const up = await pool.query(
-    'UPDATE vehiculos SET nivel_combustible=$1, km_nivel=$2, nivel_actualizado=now(), km_actual=GREATEST(km_actual,$2), km_actualizado=CASE WHEN $2::int > km_actual THEN clock_timestamp() ELSE km_actualizado END WHERE id=$3 RETURNING *',
+    `UPDATE vehiculos SET ${m.nivel}=$1, ${m.km}=$2, ${m.actualizado}=now(), km_actual=GREATEST(km_actual,$2), km_actualizado=CASE WHEN $2::int > km_actual THEN clock_timestamp() ELSE km_actualizado END WHERE id=$3 RETURNING *`,
     [nuevo, kmAhora, v.id]);
   const nuevoV = { ...v, ...up.rows[0] };
-  return { status: 200, nivel: nuevo, tramo: tramo ?? previo?.tramo ?? null, subio, gasto, tanque: describirTanque(nuevoV), odometro: await odometroEstimado(nuevoV) };
+  return { status: 200, combustible: comb, nivel: nuevo, tramo: tramo ?? previo?.tramo ?? null, subio, gasto, tanque: describirTanque(nuevoV, comb), odometro: await odometroEstimado(nuevoV) };
 }
 
 // cuanto llena un monto en soles
-function calcularCarga(v, monto) {
-  const d = datosTanque(v);
+function calcularCarga(v, monto, comb = 'gasolina') {
+  const d = datosTanque(v, comb);
   if (!d.precio) return { error: 'falta el precio del galon' };
   const galones = monto / d.precio;
   const barras = d.galPorBarra ? galones / d.galPorBarra : null;
   return {
-    monto, galones, barras,
+    combustible: comb, monto, galones, barras, de_barras: d.barras,
     km_aproximados: d.rendimiento ? galones * d.rendimiento : null,
     nivel_actual: d.nivel,
-    nivel_resultante: d.nivel != null && barras != null ? Math.min(d.nivel + barras, BARRAS) : null,
-    desborda: d.nivel != null && barras != null ? d.nivel + barras > BARRAS : false
+    nivel_resultante: d.nivel != null && barras != null ? Math.min(d.nivel + barras, d.barras) : null,
+    desborda: d.nivel != null && barras != null ? d.nivel + barras > d.barras : false
   };
 }
 
 // cuanto cuesta un viaje y si alcanza con el tanque actual y con el dinero libre
-async function estimarViaje(v, { km, ida_vuelta, peajes }) {
-  const d = datosTanque(v);
+// en un dual se calcula con GLP salvo que pidan gasolina
+async function estimarViaje(v, { km, ida_vuelta, peajes, combustible }) {
+  const comb = v.dual_glp && combustible !== 'gasolina' ? 'glp' : 'gasolina';
+  const d = datosTanque(v, comb);
   const distancia = Number(km);
   if (!(distancia > 0 && distancia <= 20000)) return { status: 400, error: 'distancia invalida' };
   if (!d.rendimiento || !d.precio) return { status: 409, error: 'falta el rendimiento o el precio del combustible' };
@@ -336,7 +374,7 @@ async function estimarViaje(v, { km, ida_vuelta, peajes }) {
   } : null;
   const libre = await calcularLibre(v);
   return {
-    status: 200, km_total: kmTotal, galones, barras: d.galPorBarra ? galones / d.galPorBarra : null,
+    status: 200, combustible: comb, km_total: kmTotal, galones, barras: d.galPorBarra ? galones / d.galPorBarra : null, de_barras: d.barras,
     costo_combustible: costoCombustible, peajes: peajesN, total,
     con_tanque_actual: conTanque,
     veredicto: evaluarCompra(libre, total)
@@ -356,14 +394,10 @@ async function resumenCombustible(v) {
   const { cargas, total, meses } = r.rows[0];
   const promedioMensual = meses ? Number(total) / meses : null;
   const promedioCarga = cargas ? Number(total) / cargas : null;
-  const lect = await pool.query(
-    'SELECT km_recorridos, galones_consumidos FROM lecturas_combustible WHERE vehiculo_id=$1 AND rendimiento IS NOT NULL ORDER BY fecha DESC LIMIT 5', [v.id]);
-  const kmTramos = lect.rows.reduce((t, x) => t + Number(x.km_recorridos), 0);
-  const galTramos = lect.rows.reduce((t, x) => t + Number(x.galones_consumidos), 0);
-  const rendimientoReal = galTramos > 0 ? { valor: kmTramos / galTramos, tramos: lect.rows.length } : null;
+  const glp = datosTanque(v, 'glp');
   return {
     tanque: describirTanque(v),
-    rendimiento_real: rendimientoReal,
+    rendimiento_real: await rendimientoReal(v.id, 'gasolina'),
     grado: v.combustible_grado,
     precio_galon: precio,
     rendimiento_km_por_galon: rendimiento,
@@ -372,8 +406,29 @@ async function resumenCombustible(v) {
     promedio_mensual: promedioMensual,
     promedio_por_carga: promedioCarga,
     km_por_carga: promedioCarga && precio && rendimiento ? (promedioCarga / precio) * rendimiento : null,
-    cargas
+    cargas,
+    // equipo GLP, si el auto no es dual se devuelve inactivo para que el medidor se vea apagado
+    glp: {
+      activo: v.dual_glp,
+      tanque: describirTanque(v, 'glp'),
+      rendimiento_real: v.dual_glp ? await rendimientoReal(v.id, 'glp') : null,
+      precio_galon: glp.precio,
+      rendimiento_km_por_galon: glp.rendimiento,
+      rendimiento_origen: v.glp_rendimiento_manual != null ? 'manual' : 'estimado',
+      costo_por_km: glp.precio && glp.rendimiento ? glp.precio / glp.rendimiento : null
+    }
   };
+}
+
+// promedio de los ultimos 5 tramos con rendimiento de un combustible, ponderado por galones
+async function rendimientoReal(vehiculoId, comb) {
+  const lect = await pool.query(
+    'SELECT km_recorridos, galones_consumidos, margen_error FROM lecturas_combustible WHERE vehiculo_id=$1 AND combustible=$2 AND rendimiento IS NOT NULL ORDER BY fecha DESC LIMIT 5', [vehiculoId, comb]);
+  const kmTramos = lect.rows.reduce((t, x) => t + Number(x.km_recorridos), 0);
+  const galTramos = lect.rows.reduce((t, x) => t + Number(x.galones_consumidos), 0);
+  // los errores de lectura de cada tramo son independientes y se suman en cuadratura
+  const errGal = Math.sqrt(lect.rows.reduce((t, x) => t + (Number(x.margen_error ?? 0) * Number(x.galones_consumidos)) ** 2, 0));
+  return galTramos > 0 ? { valor: kmTramos / galTramos, tramos: lect.rows.length, margen_error: errGal / galTramos } : null;
 }
 
 // los argumentos de las tools los genera el modelo: solo se aceptan fechas YYYY-MM o YYYY-MM-DD, lo demas se ignora
@@ -485,6 +540,11 @@ async function hechosCopiloto(v) {
   else alertas.push({ nivel: 'ok', texto: `Tiene ${sol(l.libre)} libres para gustos este mes, despues de reservar combustible, mantenimientos e imprevistos.` });
   const tq = datosTanque(v);
   if (tq.nivel != null && tq.nivel <= 2) alertas.push({ nivel: 'medio', texto: `Su tanque marca ${tq.nivel} de ${BARRAS} barras${tq.autonomia ? ` (unos ${Math.round(tq.autonomia)} km)` : ''}.` });
+  if (v.dual_glp) {
+    const g = datosTanque(v, 'glp');
+    if (g.nivel != null && g.nivel <= 1) alertas.push({ nivel: 'medio', texto: `Su GLP marca ${g.nivel} de ${g.barras} LEDs${g.autonomia ? ` (unos ${Math.round(g.autonomia)} km)` : ''}.` });
+    if (!g.capacidad) alertas.push({ nivel: 'info', texto: 'Falta indicar la capacidad de su tanque GLP para usar su medidor.' });
+  }
   if (!v.combustible_grado || v.precio_galon == null) alertas.push({ nivel: 'info', texto: 'Falta elegir su combustible para calcular el costo por km.' });
   if (l.definido && l.combustible_origen === 'sin-datos') alertas.push({ nivel: 'info', texto: 'No se sabe cuanto suele gastar en combustible al mes; con ese dato el margen seria mas preciso.' });
   if (!mants.length) alertas.push({ nivel: 'info', texto: 'No sigue ningun mantenimiento (SOAT, aceite, etc.).' });
@@ -558,10 +618,12 @@ async function ejecutarTool(nombre, args, v) {
   }
   if (nombre === 'calcular_carga') {
     const monto = Number(args.monto);
-    return monto > 0 ? calcularCarga(v, monto) : { error: 'falta el monto en soles' };
+    const comb = combustibleDe(args.combustible);
+    if (comb === 'glp' && !v.dual_glp) return { error: 'el auto no tiene equipo GLP' };
+    return monto > 0 ? calcularCarga(v, monto, comb) : { error: 'falta el monto en soles' };
   }
   if (nombre === 'estimar_viaje') {
-    const r = await estimarViaje(v, { km: args.km, ida_vuelta: args.ida_vuelta === true, peajes: args.peajes });
+    const r = await estimarViaje(v, { km: args.km, ida_vuelta: args.ida_vuelta === true, peajes: args.peajes, combustible: args.combustible });
     return r.error ? { error: r.error } : r;
   }
   if (nombre === 'evaluar_compra') {
@@ -575,13 +637,13 @@ async function ejecutarTool(nombre, args, v) {
 const toolsDefs = [
   { type: 'function', function: { name: 'obtener_odometro', description: 'Odometro registrado, odometro estimado por el consumo de combustible y el recorrido parcial (km desde la ultima vez que el usuario lo puso en 0)', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'obtener_notas', description: 'Notas que el dueño anoto sobre su auto (ruidos, observaciones, recordatorios), las mas recientes primero', parameters: { type: 'object', properties: {}, required: [] } } },
-  { type: 'function', function: { name: 'calcular_carga', description: 'Cuantas barras del medidor (de 10), galones y km se obtienen con un monto en soles de combustible, y en que nivel quedaria el tanque', parameters: { type: 'object', properties: { monto: { type: 'number', description: 'Monto en soles que se cargaria' } }, required: ['monto'] } } },
-  { type: 'function', function: { name: 'estimar_viaje', description: 'Costo estimado de combustible de un viaje, si alcanza con el tanque actual, cuanto cargar antes de salir y si el dinero libre lo permite', parameters: { type: 'object', properties: { km: { type: 'number', description: 'Distancia en km de solo ida' }, ida_vuelta: { type: 'boolean', description: 'true si tambien volvera' }, peajes: { type: 'number', description: 'Soles estimados de peajes (opcional)' } }, required: ['km'] } } },
+  { type: 'function', function: { name: 'calcular_carga', description: 'Cuantas barras del medidor (10 en gasolina, 4 LEDs en GLP), galones y km se obtienen con un monto en soles de combustible, y en que nivel quedaria el tanque', parameters: { type: 'object', properties: { monto: { type: 'number', description: 'Monto en soles que se cargaria' }, combustible: { type: 'string', enum: ['gasolina', 'glp'], description: 'Opcional. glp solo si el auto es dual; por defecto gasolina' } }, required: ['monto'] } } },
+  { type: 'function', function: { name: 'estimar_viaje', description: 'Costo estimado de combustible de un viaje, si alcanza con el tanque actual, cuanto cargar antes de salir y si el dinero libre lo permite', parameters: { type: 'object', properties: { km: { type: 'number', description: 'Distancia en km de solo ida' }, ida_vuelta: { type: 'boolean', description: 'true si tambien volvera' }, peajes: { type: 'number', description: 'Soles estimados de peajes (opcional)' }, combustible: { type: 'string', enum: ['gasolina', 'glp'], description: 'Opcional. En autos duales por defecto glp' } }, required: ['km'] } } },
   { type: 'function', function: { name: 'evaluar_compra', description: 'Dice si el usuario puede permitirse un gasto o compra (adorno, accesorio, reparacion opcional...). Descuenta del presupuesto lo que aun necesita para combustible, mantenimientos del mes e imprevistos. Devuelve veredicto si / justo / no y el desglose', parameters: { type: 'object', properties: { monto: { type: 'number', description: 'Costo en soles de lo que quiere comprar' }, descripcion: { type: 'string', description: 'Que quiere comprar' } }, required: ['monto'] } } },
   { type: 'function', function: { name: 'obtener_presupuesto', description: 'Presupuesto asignado y gastado de un mes. Sin argumentos devuelve el mes actual', parameters: { type: 'object', properties: { mes: { type: 'string', description: 'Opcional. Formato YYYY-MM, por ejemplo 2026-09. Omitir para el mes actual' } }, required: [] } } },
   { type: 'function', function: { name: 'obtener_mantenimientos_pendientes', description: 'Mantenimientos activos con proxima fecha o km', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'obtener_historial_gastos', description: 'Gastos filtrados por fecha o categoria', parameters: { type: 'object', properties: { desde: { type: 'string', description: 'Opcional. Formato YYYY-MM-DD' }, hasta: { type: 'string', description: 'Opcional. Formato YYYY-MM-DD' }, categoria: { type: 'string', description: 'Opcional. Ej. Combustible' } }, required: [] } } },
-  { type: 'function', function: { name: 'obtener_combustible', description: 'Combustible del auto: grado, precio por galon, rendimiento km/galon, costo de combustible por km, y lo que el usuario suele gastar por carga y por mes', parameters: { type: 'object', properties: {}, required: [] } } },
+  { type: 'function', function: { name: 'obtener_combustible', description: 'Combustible del auto: grado, precio por galon, rendimiento km/galon, rendimiento real medido con su margen de error relativo, costo de combustible por km, lo que el usuario suele gastar por carga y por mes, y el equipo GLP si el auto es dual (glp.activo)', parameters: { type: 'object', properties: {}, required: [] } } },
   { type: 'function', function: { name: 'calcular_costo_por_km', description: 'Costo real por kilometro recorrido desde que se registro el auto (null si aun hay pocos km) y costo estimado solo de combustible', parameters: { type: 'object', properties: {}, required: [] } } }
 ];
 
@@ -614,7 +676,9 @@ app.post('/auth/logout', (req, res) => res.json({ ok: true }));
 // registra un vehiculo; si no hay specs en cache, las obtiene con la IA y las guarda
 app.post('/vehiculos', auth, async (req, res) => {
   try {
-    const { marca, modelo, anio, placa, combustible_grado } = req.body;
+    const { marca, modelo, anio, placa, combustible_grado, dual_glp, glp_capacidad } = req.body;
+    const dual = dual_glp === true;
+    const capGlp = dual && Number(glp_capacidad) >= 1 && Number(glp_capacidad) <= 60 ? Number(glp_capacidad) : null;
     let esp = await pool.query('SELECT * FROM especificaciones_vehiculo WHERE marca=$1 AND modelo=$2 AND anio=$3', [marca, modelo, anio]);
     let especificacion = esp.rows[0];
     if (especificacion && especificacion.rendimiento_km_por_galon == null) {
@@ -633,8 +697,9 @@ app.post('/vehiculos', auth, async (req, res) => {
     }
     const grado = GRADOS.includes(combustible_grado) ? combustible_grado : null;
     const precio = await precioReferencia(grado);
-    const veh = await pool.query('INSERT INTO vehiculos (usuario_id,especificacion_id,placa,km_actual,combustible_grado,precio_galon) VALUES ($1,$2,$3,0,$4,$5) RETURNING *',
-      [req.usuarioId, especificacion.id, placa, grado, precio]);
+    const precioGlp = dual ? await precioReferencia('GLP') : null;
+    const veh = await pool.query('INSERT INTO vehiculos (usuario_id,especificacion_id,placa,km_actual,combustible_grado,precio_galon,dual_glp,glp_capacidad,glp_precio_galon) VALUES ($1,$2,$3,0,$4,$5,$6,$7,$8) RETURNING *',
+      [req.usuarioId, especificacion.id, placa, grado, precio, dual, capGlp, precioGlp]);
     res.json({ ...veh.rows[0], especificacion });
   } catch (e) { res.status(500).json({ error: 'no se pudo registrar el vehiculo' }); }
 });
@@ -669,6 +734,10 @@ app.patch('/vehiculos/:id', auth, async (req, res) => {
   let rendimiento = v.rendimiento_manual;
   let mensual = v.combustible_mensual;
   let capacidad = v.capacidad_manual;
+  let dual = v.dual_glp;
+  let capGlp = v.glp_capacidad;
+  let precioGlp = v.glp_precio_galon;
+  let rendGlp = v.glp_rendimiento_manual;
 
   if (b.combustible_grado !== undefined) {
     if (!GRADOS.includes(b.combustible_grado)) return res.status(400).json({ error: 'combustible invalido' });
@@ -697,9 +766,28 @@ app.patch('/vehiculos/:id', auth, async (req, res) => {
     else if ((capacidad = numero(b.capacidad_manual, 1, 300)) === undefined) return res.status(400).json({ error: 'capacidad invalida' });
   }
 
+  // el equipo GLP se puede activar despues de registrar el auto y al activarlo toma el precio de referencia del GLP
+  if (b.dual_glp !== undefined) {
+    if (typeof b.dual_glp !== 'boolean') return res.status(400).json({ error: 'dual invalido' });
+    dual = b.dual_glp;
+    if (dual && precioGlp == null) precioGlp = await precioReferencia('GLP');
+  }
+  if (b.glp_capacidad !== undefined) {
+    if (b.glp_capacidad === null) capGlp = null;
+    else if ((capGlp = numero(b.glp_capacidad, 1, 60)) === undefined) return res.status(400).json({ error: 'capacidad GLP invalida' });
+  }
+  if (b.glp_precio_galon !== undefined) {
+    if (b.glp_precio_galon === null) precioGlp = await precioReferencia('GLP');
+    else if ((precioGlp = numero(b.glp_precio_galon, 1, 100)) === undefined) return res.status(400).json({ error: 'precio GLP invalido' });
+  }
+  if (b.glp_rendimiento_manual !== undefined) {
+    if (b.glp_rendimiento_manual === null) rendGlp = null;
+    else if ((rendGlp = numero(b.glp_rendimiento_manual, 1, 200)) === undefined) return res.status(400).json({ error: 'rendimiento GLP invalido' });
+  }
+
   const r = await pool.query(
-    'UPDATE vehiculos SET km_actual=$1, placa=$2, km_inicial=$3, combustible_grado=$4, precio_galon=$5, rendimiento_manual=$6, combustible_mensual=$7, capacidad_manual=$8, km_actualizado=CASE WHEN $10::boolean THEN clock_timestamp() ELSE km_actualizado END WHERE id=$9 RETURNING *',
-    [km, placa, kmInicial, grado, precio, rendimiento, mensual, capacidad, v.id, b.km_actual !== undefined]);
+    'UPDATE vehiculos SET km_actual=$1, placa=$2, km_inicial=$3, combustible_grado=$4, precio_galon=$5, rendimiento_manual=$6, combustible_mensual=$7, capacidad_manual=$8, km_actualizado=CASE WHEN $10::boolean THEN clock_timestamp() ELSE km_actualizado END, dual_glp=$11, glp_capacidad=$12, glp_precio_galon=$13, glp_rendimiento_manual=$14 WHERE id=$9 RETURNING *',
+    [km, placa, kmInicial, grado, precio, rendimiento, mensual, capacidad, v.id, b.km_actual !== undefined, dual, capGlp, precioGlp, rendGlp]);
   res.json(r.rows[0]);
 });
 
@@ -821,7 +909,7 @@ app.get('/vehiculos/:id/dashboard', auth, async (req, res) => {
   res.json({ presupuesto, gastos_por_categoria: porCategoria.rows, proximos_mantenimientos: mantenimientos.rows, costo_por_km: costo.costo_por_km, combustible, libre, odometro: await odometroEstimado(v) });
 });
 
-// fija el nivel del medidor de combustible (barras); opcionalmente registra la carga como gasto
+// fija el nivel del medidor de gasolina o de GLP; opcionalmente registra la carga como gasto
 app.put('/vehiculos/:id/nivel-combustible', auth, async (req, res) => {
   const v = await vehiculoDeUsuario(req.params.id, req.usuarioId);
   if (!v) return res.status(404).json({ error: 'no encontrado' });
@@ -836,7 +924,9 @@ app.post('/vehiculos/:id/calcular-carga', auth, async (req, res) => {
   if (!v) return res.status(404).json({ error: 'no encontrado' });
   const monto = Number(req.body.monto);
   if (!(monto > 0 && monto <= 100000)) return res.status(400).json({ error: 'monto invalido' });
-  const r = calcularCarga(v, monto);
+  const comb = combustibleDe(req.body.combustible);
+  if (comb === 'glp' && !v.dual_glp) return res.status(409).json({ error: 'el auto no tiene equipo GLP' });
+  const r = calcularCarga(v, monto, comb);
   if (r.error) return res.status(409).json({ error: r.error });
   res.json(r);
 });
@@ -930,7 +1020,7 @@ app.post('/vehiculos/:id/chat', auth, async (req, res) => {
   const v = await vehiculoDeUsuario(req.params.id, req.usuarioId);
   if (!v) return res.status(404).json({ error: 'no encontrado' });
   let mensajes = [
-    { role: 'system', content: `Eres el mecanico y amigo personal del usuario para su vehiculo. Responde corto y cercano, usa las tools para datos reales, nunca inventes cifras. Hoy es ${new Date().toLocaleDateString('en-CA')} (el mes actual es ${mesActual().slice(0, 7)}). Todos los montos estan en soles peruanos: escribelos como S/ 50, nunca con $. El "disponible" del presupuesto NO es dinero libre: parte ya esta comprometida en combustible, mantenimientos e imprevistos. Si el usuario pregunta si puede comprar, pagar o gastar algo, SIEMPRE llama a evaluar_compra con el monto y responde con un veredicto claro (si / justo / no) citando cuanto tiene libre y que falta reservar. Si no dijo el monto, preguntale cuanto cuesta.` },
+    { role: 'system', content: `Eres el mecanico y amigo personal del usuario para su vehiculo. Responde corto y cercano, usa las tools para datos reales, nunca inventes cifras. Hoy es ${new Date().toLocaleDateString('en-CA')} (el mes actual es ${mesActual().slice(0, 7)}). Todos los montos estan en soles peruanos: escribelos como S/ 50, nunca con $. El "disponible" del presupuesto NO es dinero libre: parte ya esta comprometida en combustible, mantenimientos e imprevistos. Si el usuario pregunta si puede comprar, pagar o gastar algo, SIEMPRE llama a evaluar_compra con el monto y responde con un veredicto claro (si / justo / no) citando cuanto tiene libre y que falta reservar. Si no dijo el monto, preguntale cuanto cuesta.${v.dual_glp ? ' El auto es dual: gasolina y GLP (medidor de 4 LEDs). Usa el parametro combustible de las tools segun lo que diga el usuario; para viajes, si no lo dice, asume GLP.' : ''}` },
     { role: 'user', content: req.body.mensaje }
   ];
   for (let i = 0; i < 5; i++) {

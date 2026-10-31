@@ -47,6 +47,42 @@
       <small>Con esto reservo lo que aún te falta cargar este mes y calculo cuánto te queda libre para gustos.</small>
     </label>
 
+    <fieldset class="glp">
+      <label class="check">
+        <input name="dual" type="checkbox" [(ngModel)]="dual" />
+        Mi auto es dual, también tiene equipo a gas GLP
+      </label>
+      @if (dual) {
+        <label class="campo">Capacidad útil del tanque GLP (galones)
+          <input name="glpCapacidad" type="number" min="1" max="60" step="0.5" [(ngModel)]="glpCapacidad" placeholder="Ej. 10" />
+          <small>
+            Un tanque toroidal suele ser de 40 a 60 litros y se llena solo hasta el 80%, unos 8 a 13 galones útiles.
+            Con esto el medidor de 4 LEDs sabe cuánto es cada LED.
+          </small>
+        </label>
+
+        <label class="campo">Rendimiento con GLP (km por galón)
+          <input name="glpRendimiento" type="number" min="1" step="0.5" [(ngModel)]="glpRendimiento" />
+          <small>
+            {{ glpOrigen === 'manual' ? 'Lo definiste tú.' : 'Estimado como 15% menos que en gasolina: el GLP rinde menos por galón. Es aproximado.' }}
+            @if (glpOrigen === 'manual') {
+              <button type="button" (click)="guardar('glp-estimado')">Volver al estimado</button>
+            }
+          </small>
+        </label>
+
+        <label class="campo">Precio del galón de GLP (S/)
+          <input name="glpPrecio" type="number" min="1" step="0.1" [(ngModel)]="glpPrecio" />
+          <small>
+            Promedio de referencia. Corrígelo si tu grifo cobra distinto.
+            @if (glpActual?.activo) {
+              <button type="button" (click)="guardar('glp-referencia')">Usar el de referencia</button>
+            }
+          </small>
+        </label>
+      }
+    </fieldset>
+
     @if (ejemplo(); as e) {
       <div class="ejemplo">
         <span>Una carga típica de {{ e.monto | soles }}</span>

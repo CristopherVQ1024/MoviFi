@@ -38,6 +38,13 @@ CREATE TABLE vehiculos (
   km_actualizado TIMESTAMPTZ,
   parcial_km_base INTEGER,
   parcial_desde TIMESTAMPTZ,
+  dual_glp BOOLEAN NOT NULL DEFAULT false,
+  glp_capacidad NUMERIC(5,1),
+  glp_precio_galon NUMERIC(6,2),
+  glp_rendimiento_manual NUMERIC(6,2),
+  glp_nivel NUMERIC(3,1),
+  glp_km_nivel INTEGER,
+  glp_nivel_actualizado TIMESTAMPTZ,
   fecha_registro TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -59,6 +66,7 @@ CREATE TABLE consejos_diarios (
 CREATE TABLE lecturas_combustible (
   id SERIAL PRIMARY KEY,
   vehiculo_id INTEGER NOT NULL REFERENCES vehiculos(id) ON DELETE CASCADE,
+  combustible TEXT NOT NULL DEFAULT 'gasolina' CHECK (combustible IN ('gasolina', 'glp')),
   fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
   nivel_anterior NUMERIC(3,1),
   nivel NUMERIC(3,1) NOT NULL,
@@ -68,6 +76,7 @@ CREATE TABLE lecturas_combustible (
   galones_consumidos NUMERIC(6,2),
   costo_estimado NUMERIC(10,2),
   rendimiento NUMERIC(6,2),
+  margen_error NUMERIC(5,3),
   km_estimados NUMERIC(8,1) NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_lecturas_vehiculo_fecha ON lecturas_combustible (vehiculo_id, fecha DESC);

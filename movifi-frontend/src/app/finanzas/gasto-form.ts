@@ -31,9 +31,11 @@ export class GastoForm {
 
   // para cargas de combustible: cuántos galones y km compra ese monto con el precio y rendimiento guardados
   protected pistaCombustible(): { galones: number; km: number } | null {
-    const c = this.store.combustible();
-    if (this.programado() || !this.monto || !c?.precio_galon || !c.rendimiento_km_por_galon) return null;
-    if (!this.categoria.trim().toLowerCase().startsWith('combustible')) return null;
+    const cat = this.categoria.trim().toLowerCase();
+    if (this.programado() || !this.monto || !cat.startsWith('combustible')) return null;
+    const comb = this.store.combustible();
+    const c = cat.includes('glp') && comb?.glp.activo ? comb.glp : comb;
+    if (!c?.precio_galon || !c.rendimiento_km_por_galon) return null;
     const galones = this.monto / c.precio_galon;
     return { galones, km: galones * c.rendimiento_km_por_galon };
   }

@@ -4,9 +4,12 @@ import {
   Copiloto,
   Dashboard,
   Gasto,
+  LecturaNivel,
   Mantenimiento,
   Nota,
   NuevoGasto,
+  NuevoVehiculo,
+  TipoCombustible,
   TipoMantenimiento,
   Vehiculo,
 } from '../core/api.service';
@@ -128,6 +131,7 @@ export class FinanzasStore {
 
   readonly combustible = computed(() => this.dashboard()?.combustible ?? null);
   readonly tanque = computed(() => this.dashboard()?.combustible.tanque ?? null);
+  readonly glp = computed(() => this.dashboard()?.combustible.glp ?? null);
   readonly odometro = computed(() => this.dashboard()?.odometro ?? null);
   readonly libre = computed(() => this.dashboard()?.libre ?? null);
 
@@ -190,7 +194,7 @@ export class FinanzasStore {
     return this.api.meAlcanza(this.vehiculo()!.id, monto);
   }
 
-  async registrarVehiculo(d: { marca: string; modelo: string; anio: number; placa: string; combustible_grado: string }) {
+  async registrarVehiculo(d: NuevoVehiculo) {
     await this.api.crearVehiculo(d);
     await this.iniciar();
   }
@@ -208,6 +212,10 @@ export class FinanzasStore {
     precio_galon?: number | null;
     combustible_mensual?: number | null;
     capacidad_manual?: number | null;
+    dual_glp?: boolean;
+    glp_capacidad?: number | null;
+    glp_precio_galon?: number | null;
+    glp_rendimiento_manual?: number | null;
   }) {
     const v = this.vehiculo();
     if (!v) return;
@@ -216,7 +224,7 @@ export class FinanzasStore {
   }
 
   // fija el nivel del medidor; si hay monto, el backend registra además la carga como gasto
-  async guardarNivel(d: { nivel: number; km?: number | null; monto?: number | null; nivel_antes?: number | null }) {
+  async guardarNivel(d: LecturaNivel) {
     const v = this.vehiculo();
     if (!v) throw new Error('sin vehiculo');
     const r = await this.api.fijarNivel(v.id, d);
@@ -248,7 +256,7 @@ export class FinanzasStore {
     this.notas.set(await this.api.notas(this.vehiculo()!.id));
   }
 
-  estimarViaje(d: { km: number; ida_vuelta: boolean; peajes: number | null }) {
+  estimarViaje(d: { km: number; ida_vuelta: boolean; peajes: number | null; combustible?: TipoCombustible }) {
     return this.api.estimarViaje(this.vehiculo()!.id, d);
   }
 

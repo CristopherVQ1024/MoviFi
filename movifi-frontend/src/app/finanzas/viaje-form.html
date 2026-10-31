@@ -15,6 +15,15 @@
       Ida y vuelta
     </label>
 
+    @if (store.glp()?.activo) {
+      <label class="campo">Viajo con
+        <select name="combustible" [(ngModel)]="combustible" (ngModelChange)="limpiar()">
+          <option value="glp">GLP</option>
+          <option value="gasolina">Gasolina</option>
+        </select>
+      </label>
+    }
+
     <label class="campo">Peajes estimados (S/, opcional)
       <input name="peajes" type="number" min="0" step="1" [(ngModel)]="peajes" (ngModelChange)="limpiar()" placeholder="0" />
     </label>
@@ -31,12 +40,12 @@
   @if (resultado(); as r) {
     <section class="resultado">
       <div class="linea grande">
-        <span>Combustible</span>
+        <span>{{ r.combustible === 'glp' ? 'GLP' : 'Combustible' }}</span>
         <strong>{{ r.costo_combustible | soles }}</strong>
       </div>
       <p class="detalle">
         {{ r.km_total | number: '1.0-0' }} km → {{ r.galones | number: '1.0-1' }} galones
-        @if (r.barras) { (≈ {{ r.barras | number: '1.0-1' }} barras del medidor) }
+        @if (r.barras) { (≈ {{ r.barras | number: '1.0-1' }} {{ r.combustible === 'glp' ? 'LEDs' : 'barras' }} del medidor) }
       </p>
       @if (r.peajes) {
         <div class="linea"><span>Peajes</span><b>{{ r.peajes | soles }}</b></div>

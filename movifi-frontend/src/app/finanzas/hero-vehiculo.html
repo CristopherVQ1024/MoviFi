@@ -20,6 +20,7 @@
       <div class="piso"></div>
       <div class="capa capa-medidor"><app-medidor [valor]="store.salud()" /></div>
       <div class="capa capa-auto"><app-auto-deportivo /></div>
+      <app-tanque-combustible tipo="glp" />
       <app-tanque-combustible />
     </div>
 
@@ -95,6 +96,11 @@
           <span class="chip neutro">
             {{ c.grado ?? 'sin elegir' }}@if (c.precio_galon) { · {{ c.precio_galon | soles: 2 }}/gal }
           </span>
+          @if (c.glp.activo) {
+            <span class="chip neutro">
+              GLP@if (c.glp.rendimiento_km_por_galon) { · {{ c.glp.rendimiento_km_por_galon | number: '1.0-0' }} km/gal }@if (c.glp.precio_galon) { · {{ c.glp.precio_galon | soles: 2 }}/gal }
+            </span>
+          }
         }
         <button class="lapiz" type="button" (click)="store.ajustesCombustible.set(true)">Ajustar</button>
       </div>
