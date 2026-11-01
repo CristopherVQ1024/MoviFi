@@ -25,7 +25,7 @@
     </div>
 
     <div class="datos">
-      <div class="dato">
+      <div class="dato ancho">
         <span class="etq">Odómetro</span>
         @if (!editando()) {
           <div class="odometro">
@@ -89,7 +89,7 @@
         }
       </div>
 
-      <div class="dato">
+      <div class="dato ancho">
         <span class="etq">Combustible</span>
         @if (store.combustible(); as c) {
           <strong class="valor digital">{{ c.rendimiento_km_por_galon ?? '—' }}<small> km/gal</small></strong>

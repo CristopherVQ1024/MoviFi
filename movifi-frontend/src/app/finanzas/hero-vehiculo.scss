@@ -31,6 +31,7 @@ h2 {
 }
 
 .placa {
+  flex: none;
   padding: 0.3rem 0.8rem;
   border: 2px solid var(--texto);
   border-radius: 6px;
@@ -225,6 +226,10 @@ h2 {
 }
 
 @media (max-width: 560px) {
+  .ancho {
+    grid-column: 1 / -1;
+  }
+
   .escena {
     min-height: 340px;
   }
@@ -255,6 +260,21 @@ h2 {
 
   h2 {
     font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .escena {
+    min-height: 380px;
+  }
+
+  .datos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .placa {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.85rem;
   }
 }
 
